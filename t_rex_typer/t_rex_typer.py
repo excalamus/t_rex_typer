@@ -252,6 +252,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._on_save_file(self.current_file)
 
     def on_save_file_as(self):
+        # TODO global or text edit local save shortcut
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             caption="Save As...",
