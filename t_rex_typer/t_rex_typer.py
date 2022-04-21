@@ -76,7 +76,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.about_window = AboutWindow()
 
         # Match label
-        self.match_label = ElidingLabel('Match', QtCore.Qt.ElideRight)
+        self.match_label = ElidingLabel('', QtCore.Qt.ElideRight)
         self.match_label.setWordWrap(True)
         self.match_label.setMargin(10)
 
@@ -89,17 +89,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.steno_label.hide()
 
         # Text edit
-        placeholder = 'Type here...'
+        placeholder = 'Put practice words here...'
 
         self.text_edit = QtWidgets.QTextEdit()
         self.text_edit.setPlaceholderText(placeholder)
         self.text_edit.textChanged.connect(self.on_text_edit_changed)
-        text = ("It's the case that every effort has been made to replicate this text as faithfully as "
-                "possible, including inconsistencies in spelling and hyphenation.  Some "
-                "corrections of spelling and punctuation have been made. They are "
-                "listed at the end of the text.")
 
-        self.text_edit.setText(text)
+        # text = ("It's the case that every effort has been made to replicate this text as faithfully as "
+        #         "possible, including inconsistencies in spelling and hyphenation.  Some "
+        #         "corrections of spelling and punctuation have been made. They are "
+        #         "listed at the end of the text.")
+
+        # self.text_edit.setText(text)
 
         self.open_file_action = QtWidgets.QAction('&Open', self)
         self.open_file_action.setShortcut('Ctrl+O')
