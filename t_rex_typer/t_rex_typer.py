@@ -83,6 +83,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Line edit
         self.line_edit = QtWidgets.QLineEdit()
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
+        # self.line_edit.textChanged.connect(self.on_line_edit_text_changed)
 
         # Steno label
         self.steno_label = QtWidgets.QLabel('PHROFR')
@@ -273,19 +274,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self.parsed_text = text_no_punctuation
 
     def on_line_edit_text_edited(self, content):
-        print(f'{content} {self.parsed_text[0]}', flush=True)
-        if content.strip().lower() == self.parsed_text[0]:
-            self.parsed_text = self.parsed_text[1:]
-
-            lookahead = self.raw_text[len(content):].strip()[:4]
-            lookahead_less_punct = lookahead.translate(str.maketrans('', '', string.punctuation))
-            if len(lookahead) == len(lookahead_less_punct):  # nothing was deleted
-                self.raw_text[len(content):].strip()
+        # print(f"{self.line_edit.cursorPosition()}:{content}", flush=True)
+        if content:
+            cursor_index = self.line_edit.cursorPosition() - 1
+            last_entry = content[-1]
+            if last_entry == self.raw_text[cursor_index]:
+                print(f"valid", flush=True)
             else:
-                num_deleted = len(lookahead) - len(lookahead_less_punct)
+                print(f"invalid: {last_entry} != {self.raw_text[cursor_index]}", flush=True)
 
-                breakpoint()
-                self.raw_text[len(content):].strip()[3:]
+    #     print(f'Line edit: {content}\nParsed text:{self.parsed_text[0]}', flush=True)
+    #     if content.strip().lower() == self.parsed_text[0]:
+    #         self.parsed_text = self.parsed_text[1:]
+
+    #         lookahead = self.raw_text[len(content):].strip()[:4]
+    #         lookahead_less_punct = lookahead.translate(str.maketrans('', '', string.punctuation))
+    #         if len(lookahead) == len(lookahead_less_punct):  # nothing was deleted
+    #             self.raw_text[len(content):].strip()
+    #         else:
+    #             num_deleted = len(lookahead) - len(lookahead_less_punct)
+
+    #             breakpoint()
+    #             self.raw_text[len(content):].strip()[3:]
+
+    def on_line_edit_text_changed(self, content):
+        print(f"changed: {content}", flush=True)
+        breakpoint()
 
     def closeEvent(self, event):
         # since MainWindow is not parent, must close manually
