@@ -1,3 +1,4 @@
+import os
 import sys
 import string
 from widgets import ElidingLabel
@@ -113,6 +114,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.save_file_as_action = QtWidgets.QAction('Save &As...', self)
         self.save_file_as_action.setStatusTip('Save As')
+        self.save_file_as_action.setEnabled(False)
         self.save_file_as_action.triggered.connect(self.on_save_file_as)
 
         self.exit_action = QtWidgets.QAction('&Exit', self)
@@ -226,22 +228,30 @@ class MainWindow(QtWidgets.QMainWindow):
         except (FileNotFoundError):
             pass
 
-    def on_save_file(self):
+    def _on_save_file(self, filename):
         text = self.text_edit.toPlainText()
         try:
-            with open(self.current_file, 'w') as f:
+            with open(filename, 'w') as f:
                 f.write(text)
 
-            self.text_edit.setPlainText(text)
-            self.set_window_title(self.current_file)
+            # self.text_edit.setPlainText(text)
+            self.set_window_title(filename)
         except Exception as err:
             self.message_box = QtWidgets.QMessageBox()
             self.message_box.setText('Error: ' + str(err))
             self.message_box.show()
 
+    def on_save_file(self):
+        self._on_save_file(self.current_file)
+
     def on_save_file_as(self):
-        # TODO
-        print(f"on_save_file_as", flush=True)
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self,
+                                                            caption="Save as...",
+                                                            dir=os.path.expanduser("~"),
+                                                            filter="Text files (*.txt);;All files (*.*)")
+        if filename:
+            self._on_save_file(filename)
+            self.current_file = filename
 
     def on_about(self):
         self.about_window.show()
@@ -252,6 +262,8 @@ class MainWindow(QtWidgets.QMainWindow):
             title = self.current_file + '*'
 
         self.set_window_title(title)
+
+        self.save_file_as_action.setEnabled(True)
 
         self.raw_text = self.text_edit.toPlainText()
         self.match_label.setText(self.raw_text)
