@@ -7,10 +7,9 @@ from translation_dict import TranslationDict
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
-APPLICATION_NAME     = "T-Rex Typer"
-APPLICATION_ICON     = "resources/trex_w_board_48.png"
-# KAWAII_DINOSAUR_ICON = "resources/trex_48.png"
-# KEYBOARD_ICON        = "resources/keyboard_48.png"
+APPLICATION_NAME  = "T-Rex Typer"
+APPLICATION_ICON  = "resources/trex_w_board_48.png"
+DEFAULT_DIRECTORY = os.path.expanduser("~")
 
 
 class AboutWindow(QtWidgets.QWidget):
@@ -20,8 +19,11 @@ class AboutWindow(QtWidgets.QWidget):
 
         self.setWindowTitle(f'About {APPLICATION_NAME}')
 
-        # widgets
-        self.title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON}">About</h1>')
+        self.init_widgets()
+        self.init_layout()
+
+    def init_widgets(self):
+        self.body_title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON}">About</h1>')
 
         body_text = (
             f'<p>{APPLICATION_NAME} is made by Matt Trzcinski.</p>'
@@ -38,9 +40,9 @@ class AboutWindow(QtWidgets.QWidget):
                                           QtCore.Qt.TextSelectableByMouse)
         self.body.linkHovered.connect(self.on_hover)
 
-        # layout
+    def init_layout(self):
         self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self.title)
+        self.layout.addWidget(self.body_title)
         self.layout.addWidget(self.body, stretch=1)
         self.setLayout(self.layout)
 
@@ -61,7 +63,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.setWindowTitle(APPLICATION_NAME)
 
-        self.default_dir = '.'
         self.current_file = None
 
         self.raw_text = ''
@@ -140,6 +141,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.help_menu.addAction(self.about_action)
 
     def init_layout(self):
+
+        self.setGeometry(300, 300, 800, 400)
+
         # Frame top left
         self.ftl_layout = QtWidgets.QVBoxLayout()
         self.ftl_layout.setContentsMargins(2, 2, 2, 2)
@@ -204,9 +208,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.central_widget.setLayout(self.central_layout)
         self.setCentralWidget(self.central_widget)
 
-        # Misc geometry and self.central_layout
-        self.setGeometry(300, 300, 800, 400)
-
     def set_window_title(self, string=''):
         self.setWindowTitle(f'{APPLICATION_NAME} - ' + str(string))
 
@@ -215,9 +216,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self.save_file_action.setEnabled(True)
 
     def on_open_file(self):
+        # TODO need a "most recent directory" for open and save as.
+
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
             caption='Open File',
-            dir=self.default_dir,
+            dir=DEFAULT_DIRECTORY,
             filter='Text Files (*.txt);;All (*.*)')
 
         try:
@@ -236,7 +240,6 @@ class MainWindow(QtWidgets.QMainWindow):
             with open(filename, 'w') as f:
                 f.write(text)
 
-            # self.text_edit.setPlainText(text)
             self.set_window_title(filename)
         except Exception as err:
             self.message_box = QtWidgets.QMessageBox()
@@ -247,10 +250,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self._on_save_file(self.current_file)
 
     def on_save_file_as(self):
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self,
-                                                            caption="Save as...",
-                                                            dir=os.path.expanduser("~"),
-                                                            filter="Text files (*.txt);;All files (*.*)")
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self,
+            caption="Save As...",
+            dir=DEFAULT_DIRECTORY,
+            filter="Text files (*.txt);;All files (*.*)")
+
         if filename:
             self._on_save_file(filename)
             self.current_file = filename
@@ -270,7 +275,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.raw_text = self.text_edit.toPlainText()
         self.match_label.setText(self.raw_text)
 
-        text_no_punctuation = self.raw_text.translate(str.maketrans('', '', string.punctuation)).lower().split()
+        text_no_punctuation = self.raw_text \
+                                  .translate(str.maketrans('', '', string.punctuation)) \
+                                  .lower() \
+                                  .split()
+
         self.parsed_text = text_no_punctuation
 
     def on_line_edit_text_edited(self, content):
@@ -282,20 +291,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"valid", flush=True)
             else:
                 print(f"invalid: {last_entry} != {self.raw_text[cursor_index]}", flush=True)
-
-    #     print(f'Line edit: {content}\nParsed text:{self.parsed_text[0]}', flush=True)
-    #     if content.strip().lower() == self.parsed_text[0]:
-    #         self.parsed_text = self.parsed_text[1:]
-
-    #         lookahead = self.raw_text[len(content):].strip()[:4]
-    #         lookahead_less_punct = lookahead.translate(str.maketrans('', '', string.punctuation))
-    #         if len(lookahead) == len(lookahead_less_punct):  # nothing was deleted
-    #             self.raw_text[len(content):].strip()
-    #         else:
-    #             num_deleted = len(lookahead) - len(lookahead_less_punct)
-
-    #             breakpoint()
-    #             self.raw_text[len(content):].strip()[3:]
 
     def on_line_edit_text_changed(self, content):
         print(f"changed: {content}", flush=True)
@@ -310,6 +305,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
+    # TODO logging
     app = QtWidgets.QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon(APPLICATION_ICON))
 
