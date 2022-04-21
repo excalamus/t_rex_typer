@@ -73,37 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def init_widgets(self):
 
-        # no parent so that a separate window is used
-        self.about_window = AboutWindow()
-
-        # Match label
-        self.match_label = ElidingLabel('', QtCore.Qt.ElideRight)
-        self.match_label.setWordWrap(True)
-        self.match_label.setMargin(10)
-
-        # Line edit
-        self.line_edit = QtWidgets.QLineEdit()
-        self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
-        # self.line_edit.textChanged.connect(self.on_line_edit_text_changed)
-
-        # Steno label
-        self.steno_label = QtWidgets.QLabel('PHROFR')
-        self.steno_label.hide()
-
-        # Text edit
-        placeholder = 'Put practice words here...'
-
-        self.text_edit = QtWidgets.QTextEdit()
-        self.text_edit.setPlaceholderText(placeholder)
-        self.text_edit.textChanged.connect(self.on_text_edit_changed)
-
-        # text = ("It's the case that every effort has been made to replicate this text as faithfully as "
-        #         "possible, including inconsistencies in spelling and hyphenation.  Some "
-        #         "corrections of spelling and punctuation have been made. They are "
-        #         "listed at the end of the text.")
-
-        # self.text_edit.setText(text)
-
+        # menu
         self.open_file_action = QtWidgets.QAction('&Open', self)
         self.open_file_action.setShortcut('Ctrl+O')
         self.open_file_action.setStatusTip('Open...')
@@ -139,6 +109,38 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.help_menu = self.menu_bar.addMenu('&Help')
         self.help_menu.addAction(self.about_action)
+
+        # no parent so that a separate window is used
+        self.about_window = AboutWindow()
+
+        # Match label
+        self.match_label = ElidingLabel('', QtCore.Qt.ElideRight)
+        self.match_label.setWordWrap(True)
+        self.match_label.setMargin(10)
+
+        # Line edit
+        self.line_edit = QtWidgets.QLineEdit()
+        self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
+        # self.line_edit.textChanged.connect(self.on_line_edit_text_changed)
+
+        # Steno label
+        self.steno_label = QtWidgets.QLabel('PHROFR')
+        self.steno_label.hide()
+
+        # Text edit
+        placeholder = 'Put practice words here...'
+
+        self.text_edit = QtWidgets.QTextEdit()
+        self.text_edit.setPlaceholderText(placeholder)
+        self.text_edit.textChanged.connect(self.on_text_edit_changed)
+
+        text = ("It's the case that every effort has been made to replicate this text as faithfully as "
+                "possible, including inconsistencies in spelling and hyphenation.  Some "
+                "corrections of spelling and punctuation have been made. They are "
+                "listed at the end of the text.")
+
+        self.text_edit.setText(text)
+
 
     def init_layout(self):
 
