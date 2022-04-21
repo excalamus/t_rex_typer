@@ -33,6 +33,8 @@ class AboutWindow(QtWidgets.QWidget):
 
         self.body = QtWidgets.QLabel(body_text)
         self.body.setOpenExternalLinks(True)
+        self.body.setTextInteractionFlags(self.body.textInteractionFlags() |
+                                          QtCore.Qt.TextSelectableByMouse)
         self.body.linkHovered.connect(self.on_hover)
 
         # layout
