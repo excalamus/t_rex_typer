@@ -1,6 +1,5 @@
 import os
 import sys
-import string
 from widgets import ElidingLabel
 from translation_dict import TranslationDict
 
