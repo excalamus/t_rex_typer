@@ -121,7 +121,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # Line edit
         self.line_edit = QtWidgets.QLineEdit()
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
-        # self.line_edit.textChanged.connect(self.on_line_edit_text_changed)
 
         # Steno label
         self.steno_label = QtWidgets.QLabel('PHROFR')
@@ -276,13 +275,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.raw_text = self.text_edit.toPlainText()
         self.match_label.setText(self.raw_text)
-
-        # text_no_punctuation = self.raw_text \
-        #                           .translate(str.maketrans('', '', string.punctuation)) \
-        #                           .lower() \
-        #                           .split()
-
-        # self.parsed_text = text_no_punctuation
 
     def on_line_edit_text_edited(self, content):
 
