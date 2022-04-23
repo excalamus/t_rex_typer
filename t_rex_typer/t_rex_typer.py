@@ -141,7 +141,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.text_edit.setText(text)
 
-
     def init_layout(self):
 
         self.setGeometry(300, 300, 800, 400)
@@ -278,26 +277,46 @@ class MainWindow(QtWidgets.QMainWindow):
         self.raw_text = self.text_edit.toPlainText()
         self.match_label.setText(self.raw_text)
 
-        text_no_punctuation = self.raw_text \
-                                  .translate(str.maketrans('', '', string.punctuation)) \
-                                  .lower() \
-                                  .split()
+        # text_no_punctuation = self.raw_text \
+        #                           .translate(str.maketrans('', '', string.punctuation)) \
+        #                           .lower() \
+        #                           .split()
 
-        self.parsed_text = text_no_punctuation
+        # self.parsed_text = text_no_punctuation
 
     def on_line_edit_text_edited(self, content):
-        # print(f"{self.line_edit.cursorPosition()}:{content}", flush=True)
-        if content:
-            cursor_index = self.line_edit.cursorPosition() - 1
-            last_entry = content[-1]
-            if last_entry == self.raw_text[cursor_index]:
-                print(f"valid", flush=True)
-            else:
-                print(f"invalid: {last_entry} != {self.raw_text[cursor_index]}", flush=True)
 
-    def on_line_edit_text_changed(self, content):
-        print(f"changed: {content}", flush=True)
-        breakpoint()
+        # position is "between" characters; index is "on" characters
+        line_edit_cursor_position = self.line_edit.cursorPosition()
+        line_edit_cursor_index = self.line_edit.cursorPosition() - 1
+        expected = self.raw_text[line_edit_cursor_index]
+
+        cursor = QtGui.QTextCursor(self.text_edit.document())
+        cursor.setPosition(line_edit_cursor_position)
+        cursor.deletePreviousChar()
+
+        if content:
+            last_entry = content[-1]
+
+            if last_entry == expected:
+                color = QtGui.QColor(190, 190, 190)  # gray
+            else:  # typo
+                color = QtGui.QColor(255, 0, 0)  # red
+
+            text_format = cursor.charFormat()
+            text_format.setForeground(QtGui.QBrush(color))
+            cursor.setCharFormat(text_format)
+            cursor.insertText(expected)
+
+        # handle backspace; replace all text after last_entry with black text
+        cursor.setPosition(len(self.raw_text), QtGui.QTextCursor.KeepAnchor)
+        text_to_end = cursor.selection().toPlainText()
+        cursor.removeSelectedText()
+
+        text_format = cursor.charFormat()
+        text_format.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))  # black
+        cursor.setCharFormat(text_format)
+        cursor.insertText(text_to_end)
 
     def closeEvent(self, event):
         # since MainWindow is not parent, must close manually
