@@ -13,22 +13,30 @@ DEFAULT_DIRECTORY = os.path.expanduser("~")
 
 class TextLabel(QtWidgets.QTextEdit):
 
-    def __init__(self, parent=None):
+    def __init__(self, text='', parent=None):
         super().__init__()
 
+        if parent:
+            color = parent.palette().background().color()
+        else:
+            color = QtGui.QColor(239, 239, 239)  # the default light gray
+
         p =  self.viewport().palette()
-        p.setColor(self.viewport().backgroundRole(), QtGui.QColor(239, 239, 239))
+        p.setColor(self.viewport().backgroundRole(), color)
         self.viewport().setPalette(p)
 
+        self.document().setDocumentMargin(0)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setFrameShape(QtWidgets.QFrame.NoFrame)
         self.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
         self.setReadOnly(True)
 
-        self.document().setDocumentMargin(0)
-        fontMetrics = QtGui.QFontMetrics(self.font())
-        height = fontMetrics.height() + (self.frameWidth()) * 2
+        # TODO this is set one time. If the font is changed, the font_metrics
+        # object is not updated nor is the height.  This also prevents the
+        # widget from resizing as might be expected when compared to a QLabel.
+        font_metrics = QtGui.QFontMetrics(self.font())
+        height = font_metrics.height() + (self.frameWidth()) * 2
         self.setFixedHeight(height)
 
 
@@ -133,7 +141,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.about_window = AboutWindow()
 
         # Match label
-        self.text_viewer = TextLabel()
+        self.text_viewer = TextLabel(self)
 
         # Line edit
         self.line_edit = QtWidgets.QLineEdit()
