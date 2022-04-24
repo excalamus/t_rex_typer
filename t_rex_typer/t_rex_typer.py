@@ -1,6 +1,6 @@
 import os
 import sys
-from widgets import ElidingLabel
+# from widgets import ElidingLabel
 from translation_dict import TranslationDict
 
 from PySide2 import QtCore, QtWidgets, QtGui
@@ -9,6 +9,27 @@ from PySide2 import QtCore, QtWidgets, QtGui
 APPLICATION_NAME  = "T-Rex Typer"
 APPLICATION_ICON  = "resources/trex_w_board_48.png"
 DEFAULT_DIRECTORY = os.path.expanduser("~")
+
+
+class TextLabel(QtWidgets.QTextEdit):
+
+    def __init__(self, parent=None):
+        super().__init__()
+
+        p =  self.viewport().palette()
+        p.setColor(self.viewport().backgroundRole(), QtGui.QColor(239, 239, 239))
+        self.viewport().setPalette(p)
+
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setFrameShape(QtWidgets.QFrame.NoFrame)
+        self.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
+        self.setReadOnly(True)
+
+        self.document().setDocumentMargin(0)
+        fontMetrics = QtGui.QFontMetrics(self.font())
+        height = fontMetrics.height() + (self.frameWidth()) * 2
+        self.setFixedHeight(height)
 
 
 class AboutWindow(QtWidgets.QWidget):
@@ -25,7 +46,7 @@ class AboutWindow(QtWidgets.QWidget):
         self.body_title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON}">About</h1>')
 
         body_text = (
-            f'<p>{APPLICATION_NAME} is made by Matt Trzcinski.</p>'
+            f'<p>The {APPLICATION_NAME} is made by Matt Trzcinski.</p>'
             f'<hr>'
             f'<p>'
             f'<a href="https://icons8.com/icon/5vV_csnCe5Q2/kawaii-dinosaur">kawaii-dinosaur</a> and '
@@ -65,7 +86,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_file = None
 
         self.raw_text = ''
-        self.parsed_text = []
 
         self.init_widgets()
         self.init_layout()
@@ -113,31 +133,29 @@ class MainWindow(QtWidgets.QMainWindow):
         self.about_window = AboutWindow()
 
         # Match label
-        self.match_label = ElidingLabel('', QtCore.Qt.ElideRight)
-        self.match_label.setWordWrap(True)
-        self.match_label.setMargin(10)
+        self.text_viewer = TextLabel()
 
         # Line edit
         self.line_edit = QtWidgets.QLineEdit()
+        # setText doesn't trigger edited signal (only changed signal)
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
 
         # Steno label
+        # TODO
         self.steno_label = QtWidgets.QLabel('PHROFR')
         self.steno_label.hide()
 
         # Text edit
-        placeholder = 'Put practice words here...'
-
-        self.text_edit = QtWidgets.QTextEdit()
-        self.text_edit.setPlaceholderText(placeholder)
-        self.text_edit.textChanged.connect(self.on_text_edit_changed)
+        self.text_editor = QtWidgets.QTextEdit()
+        self.text_editor.setPlaceholderText('Put practice words here...')
+        self.text_editor.textChanged.connect(self.on_text_edit_changed)
 
         text = ("It's the case that every effort has been made to replicate this text as faithfully as "
                 "possible, including inconsistencies in spelling and hyphenation.  Some "
                 "corrections of spelling and punctuation have been made. They are "
                 "listed at the end of the text.")
 
-        self.text_edit.setText(text)
+        self.text_editor.setText(text)
 
     def init_layout(self):
 
@@ -147,7 +165,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ftl_layout = QtWidgets.QVBoxLayout()
         self.ftl_layout.setContentsMargins(2, 2, 2, 2)
         self.ftl_layout.addWidget(QtWidgets.QWidget(), stretch=1)
-        self.ftl_layout.addWidget(self.match_label)
+        self.ftl_layout.addWidget(self.text_viewer)
 
         self.frame_top_left = QtWidgets.QFrame()
         self.frame_top_left.setLayout(self.ftl_layout)
@@ -164,7 +182,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Frame bottom left
         self.fbl_layout = QtWidgets.QVBoxLayout()
         self.fbl_layout.setContentsMargins(2, 2, 2, 2)
-        self.fbl_layout.addWidget(self.text_edit)
+        self.fbl_layout.addWidget(self.text_editor)
 
         self.frame_bottom_left = QtWidgets.QFrame()
         self.frame_bottom_left.setLayout(self.fbl_layout)
@@ -227,14 +245,14 @@ class MainWindow(QtWidgets.QMainWindow):
             with open(filename, 'r') as f:
                 content = f.read()
 
-            self.text_edit.setPlainText(content)
+            self.text_editor.setPlainText(content)
             self.current_file = filename
             self.set_window_title(self.current_file)
         except (FileNotFoundError):
             pass
 
     def _on_save_file(self, filename):
-        text = self.text_edit.toPlainText()
+        text = self.text_editor.toPlainText()
         try:
             with open(filename, 'w') as f:
                 f.write(text)
@@ -272,8 +290,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.save_file_as_action.setEnabled(True)
 
-        self.raw_text = self.text_edit.toPlainText()
-        self.match_label.setText(self.raw_text)
+        self.raw_text = self.text_editor.toPlainText()
+        self.text_viewer.setText(self.raw_text)
 
     def on_line_edit_text_edited(self, content):
 
@@ -282,7 +300,8 @@ class MainWindow(QtWidgets.QMainWindow):
         line_edit_cursor_index = self.line_edit.cursorPosition() - 1
         expected = self.raw_text[line_edit_cursor_index]
 
-        cursor = QtGui.QTextCursor(self.text_edit.document())
+        cursor = QtGui.QTextCursor(self.text_viewer.document())
+        # cursor = QtGui.QTextCursor(self.text_editor.document())
         cursor.setPosition(line_edit_cursor_position)
         cursor.deletePreviousChar()
 
