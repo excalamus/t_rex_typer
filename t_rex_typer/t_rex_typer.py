@@ -183,6 +183,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fml_layout.setContentsMargins(2, 2, 2, 2)
         self.fml_layout.addWidget(self.line_edit)
         self.fml_layout.addWidget(self.steno_label)
+        self.fml_layout.addWidget(QtWidgets.QWidget(), stretch=1)
 
         self.frame_middle_left = QtWidgets.QFrame()
         self.frame_middle_left.setLayout(self.fml_layout)
