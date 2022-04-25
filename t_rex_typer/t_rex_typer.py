@@ -93,7 +93,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.current_file = None
 
-        self.raw_text = ''
+        self.text_raw = ''
 
         self.init_widgets()
         self.init_layout()
@@ -298,15 +298,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.save_file_as_action.setEnabled(True)
 
-        self.raw_text = self.text_editor.toPlainText()
-        self.text_viewer.setText(self.raw_text)
+        self.text_raw = self.text_editor.toPlainText()
+        self.text_viewer.setText(self.text_raw)
+
 
     def on_line_edit_text_edited(self, content):
 
         # position is "between" characters; index is "on" characters
         line_edit_cursor_position = self.line_edit.cursorPosition()
         line_edit_cursor_index = self.line_edit.cursorPosition() - 1
-        expected = self.raw_text[line_edit_cursor_index]
+        expected = self.text_raw[line_edit_cursor_index]
 
         cursor = QtGui.QTextCursor(self.text_viewer.document())
         # cursor = QtGui.QTextCursor(self.text_editor.document())
@@ -327,7 +328,7 @@ class MainWindow(QtWidgets.QMainWindow):
             cursor.insertText(expected)
 
         # handle backspace; replace all text after last_entry with black text
-        cursor.setPosition(len(self.raw_text), QtGui.QTextCursor.KeepAnchor)
+        cursor.setPosition(len(self.text_raw), QtGui.QTextCursor.KeepAnchor)
         text_to_end = cursor.selection().toPlainText()
         cursor.removeSelectedText()
 
