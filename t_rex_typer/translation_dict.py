@@ -2,8 +2,11 @@ import re
 import json
 
 
-# TODO better parsing of text
-WORD_REGEX = r"[\w']+|[{}()\[\]~`!@#$%^&*-_+=|\/.,]"
+# single quotes are used in two ways. First, as apostrophes in the
+# middle of a string of characters. Second at the boundary of a word
+# as a quote or as an abbreviation.  Exclude single quotes and parse
+# these out later.
+WORD_REGEX = r"[\w']+|[{}()\[\]~`!@#$%^&*-_+=|\/.,:;\"]"
 
 
 class TranslationDict:
@@ -112,6 +115,52 @@ class TranslationDict:
             strokes.sort(key=len)
         return strokes
 
+    @classmethod
+    def split_into_strokable_units(self, text):
+        """Split text into strokable units.
+
+        NOTE: TODO: This is not likely accurate! It is assumed that
+        text split on spaces and symbols will match a key in the
+        Plover dictionary.  That assumption may not be true.  However,
+        it should be good enough to get the application in a useable
+        state.
+
+        Parameters
+        ----------
+        text : str
+
+          Text to be split.
+
+        Returns
+        -------
+
+          List of strokable units (i.e. words and symbols)
+
+        """
+
+        # Symbols need to be strokable words except that single quote
+        # shouldn't be a stroke word if it appears inside a word.  The
+        # following works. TODO What's a better way to express this?
+
+        # split into words
+        _split_with_single_quotes = re.findall(WORD_REGEX, text)
+
+        # split apostrophes at the beginning and end of a word
+        text_split = []
+        for stroke_word in _split_with_single_quotes:
+            if stroke_word[0] == "\'" or stroke_word[-1] == "\'":
+                for w in stroke_word.split("\'"):
+                    if w:
+                        text_split.append(w)
+                    else:
+                        # split removes separator and returns empty
+                        # string
+                        text_split.append("'")
+            else:
+                text_split.append(stroke_word)
+
+        return text_split
+
     def translate(self, text):
         """Translate to steno strokes.
 
@@ -140,7 +189,7 @@ class TranslationDict:
         # 'WEBLT' instead of 'WEPBT' since the strings have the same
         # length and B < P.
 
-        split = re.findall(WORD_REGEX, text)
+        split = self.split_into_strokable_units(text)
         translation = [self.get_strokes(w)[0] for w in split]
         return translation
 

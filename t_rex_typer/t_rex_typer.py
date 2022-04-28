@@ -33,7 +33,7 @@ class TextLabel(QtWidgets.QTextEdit):
 
         # TODO this is set one time. If the font is changed, the font_metrics
         # object is not updated nor is the height.  This also prevents the
-        # widget from resizing as might be expected when compared to a QLabel.
+        # widget from resizing as might be expected_char when compared to a QLabel.
         font_metrics = QtGui.QFontMetrics(self.font())
         height = font_metrics.height() + (self.frameWidth()) * 2
         self.setFixedHeight(height)
@@ -93,9 +93,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_file = None
 
         self.text_raw = ''
+        self.text_split = []
+        self.current_unit = ''
 
         self.init_widgets()
         self.init_layout()
+
+        self.line_edit.setFocus()
 
     def init_widgets(self):
 
@@ -144,6 +148,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Line edit
         self.line_edit = QtWidgets.QLineEdit()
+
         # setText doesn't trigger edited signal (only changed signal)
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
 
@@ -157,7 +162,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_editor.setPlaceholderText('Put practice words here...')
         self.text_editor.textChanged.connect(self.on_text_edit_changed)
 
-        text = ("It's the case that every effort has been made to replicate this text as faithfully as "
+        text = ("It's \"the\" 'case' :that;.$every effort has been made to replicate this text as faithfully as "
                 "possible, including inconsistencies in spelling and hyphenation.  Some "
                 "corrections of spelling and punctuation have been made. They are "
                 "listed at the end of the text.")
@@ -298,44 +303,87 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.save_file_as_action.setEnabled(True)
 
-        self.text_raw = self.text_editor.toPlainText()
-        self.text_viewer.setText(self.text_raw)
+        self.text_raw     = self.text_editor.toPlainText()
+        self.text_split   = TranslationDict.split_into_strokable_units(self.text_raw)
+        self.current_unit = self.text_split[0]
+
+        cursor = self.text_viewer.textCursor()
+        cursor.setPosition(0)
+        text_format = cursor.charFormat()
+        text_format.setFontUnderline(True)
+        cursor.insertText(self.current_unit, text_format)
+        text_format.setFontUnderline(False)
+        cursor.insertText(' '+' '.join(self.text_split[1:]), text_format)
+        cursor.setPosition(0)
+        self.text_viewer.setTextCursor(cursor)
 
 
     def on_line_edit_text_edited(self, content):
 
+        # in steno, if the word is something like a double quote, there are
+        # different ways to write that. One stroke puts a space first to
+        # manage sentance spacing. This leading space would mess with the
+        # content comparison if we didn't trim.  The user would begin using
+        # the wrong stroke for the situation which is the opposite purpose
+        # of this tool.
+        trimmed_content = content.strip()
+
         # position is "between" characters; index is "on" characters
         line_edit_cursor_position = self.line_edit.cursorPosition()
         line_edit_cursor_index = self.line_edit.cursorPosition() - 1
-        expected = self.text_raw[line_edit_cursor_index]
 
         cursor = QtGui.QTextCursor(self.text_viewer.document())
-        # cursor = QtGui.QTextCursor(self.text_editor.document())
-        cursor.setPosition(line_edit_cursor_position)
-        cursor.deletePreviousChar()
-
-        if content:
-            last_entry = content[-1]
-
-            if last_entry == expected:
-                color = QtGui.QColor(190, 190, 190)  # gray
-            else:  # typo
-                color = QtGui.QColor(255, 0, 0)  # red
-
-            text_format = cursor.charFormat()
-            text_format.setForeground(QtGui.QBrush(color))
-            cursor.setCharFormat(text_format)
-            cursor.insertText(expected)
-
-        # handle backspace; replace all text after last_entry with black text
-        cursor.setPosition(len(self.text_raw), QtGui.QTextCursor.KeepAnchor)
-        text_to_end = cursor.selection().toPlainText()
-        cursor.removeSelectedText()
-
         text_format = cursor.charFormat()
-        text_format.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))  # black
-        cursor.setCharFormat(text_format)
-        cursor.insertText(text_to_end)
+
+        BLACK = QtGui.QColor(0, 0, 0)
+
+        if trimmed_content:
+
+            if trimmed_content == self.current_unit:
+                self.text_split.pop(0)
+                self.text_viewer.clear()
+
+                if self.text_split:
+                    self.current_unit = self.text_split[0]
+
+                    # cursor.setPosition(0)
+                    text_format.setFontUnderline(True)
+                    text_format.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))  # black
+                    cursor.setCharFormat(text_format)
+                    cursor.insertText(self.current_unit)
+                    text_format.setFontUnderline(False)
+                    cursor.setCharFormat(text_format)
+                    cursor.insertText(' '+' '.join(self.text_split[1:]))
+                    # cursor.setPosition(0)
+
+                    self.line_edit.clear()
+                else:
+                    # done
+                    text_format.setFontWeight(10)
+                    cursor.setCharFormat(text_format)
+                    cursor.insertText("CONGRATS!")
+                    self.line_edit.clear()
+            else:
+                # recolor the first unit
+                cursor.setPosition(1)
+
+                for i, c in enumerate(self.current_unit):
+                    color = BLACK
+
+                    if i < len(content) and content[i] == c:
+                        color = QtGui.QColor(190, 190, 190)  # gray
+
+                    cursor.deletePreviousChar()
+                    text_format.setForeground(QtGui.QBrush(color))
+                    cursor.insertText(c, text_format)
+                    cursor.setPosition(cursor.position()+1)
+        else:
+            # If at position 0, then content is empty and the first char remains
+            # gray.
+            cursor.setPosition(1)
+            cursor.deletePreviousChar()
+            text_format.setForeground(QtGui.QBrush(BLACK))
+            cursor.insertText(self.current_unit[0], text_format)
 
     def closeEvent(self, event):
         # since MainWindow is not parent, must close manually
