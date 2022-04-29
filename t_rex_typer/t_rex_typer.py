@@ -21,6 +21,8 @@ def my_excepthook(etype, value, tb):
 
 sys.excepthook = my_excepthook
 
+BLACK = QtGui.QColor(0, 0, 0)
+GRAY  = QtGui.QColor(190, 190, 190)
 
 APPLICATION_NAME  = "T-Rex Typer"
 APPLICATION_ICON  = "resources/trex_w_board_48.png"
@@ -344,6 +346,7 @@ class MainWindow(QtWidgets.QMainWindow):
         cursor = self.text_viewer.textCursor()
         cursor.setPosition(0)
         text_format = cursor.charFormat()
+        text_format.setForeground(QtGui.QBrush(BLACK))
         text_format.setFontUnderline(True)
         cursor.insertText(self.current_unit, text_format)
         text_format.setFontUnderline(False)
@@ -394,8 +397,6 @@ class MainWindow(QtWidgets.QMainWindow):
         cursor = QtGui.QTextCursor(self.text_viewer.document())
         text_format = cursor.charFormat()
 
-        BLACK = QtGui.QColor(0, 0, 0)
-
         if trimmed_content:
 
             # match; advance or finish
@@ -434,7 +435,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     color = BLACK
 
                     if i < len(content) and content[i] == c:
-                        color = QtGui.QColor(190, 190, 190)  # gray
+                        color = GRAY
 
                     cursor.deletePreviousChar()
                     text_format.setForeground(QtGui.QBrush(color))
