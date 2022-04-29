@@ -1,12 +1,13 @@
 import os
 import sys
-from enum import Enum
+import copy
 
 import logging
 log = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s: [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
 
 import argparse
+from enum import Enum
 from translation_dict import TranslationDict
 from PySide2 import QtCore, QtWidgets, QtGui
 
@@ -116,7 +117,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_file = None
 
         self.text_raw = ''
-        self.text_split = []
+        self.text_split = ()
+        self.live_split = []
         self.current_unit = ''
 
         self.init_widgets()
@@ -176,7 +178,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # no parent so that a separate window is used
         self.about_window = AboutWindow()
 
-        # Match label
+        # Text viewer
         self.text_viewer = TextLabel(self)
 
         # Line edit
@@ -199,6 +201,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 # "faithfully as possible, including inconsistencies in spelling"
                 # "and hyphenation.  Some corrections of spelling and punctuation"
                 # "have been made. They are listed at the end of the text.")
+
+        text = "this is a test"
 
         self.text_editor.setText(text)
 
@@ -332,19 +336,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def on_about(self):
         self.about_window.show()
 
-    def on_text_edit_changed(self):
-        title = '*'
-        if self.current_file:
-            title = self.current_file + '*'
-
-        self.set_window_title(title)
-
-        self.save_file_as_action.setEnabled(True)
-
-        self.text_raw     = self.text_editor.toPlainText()
-        self.text_split   = TranslationDict.split_into_strokable_units(self.text_raw)
+    def _reset(self):
+        self.live_split   = list(self.text_split)
         self.current_unit = self.text_split[0]
 
+        self.text_viewer.clear()
         cursor = self.text_viewer.textCursor()
         cursor.setPosition(0)
         text_format = cursor.charFormat()
@@ -355,12 +351,32 @@ class MainWindow(QtWidgets.QMainWindow):
         cursor.setPosition(0)
         self.text_viewer.setTextCursor(cursor)
 
+        self.line_edit.setEnabled(True)
+
+        self.run_state = RunState.READY
+
+    def on_text_edit_changed(self):
+        title = '*'
+        if self.current_file:
+            title = self.current_file + '*'
+
+        self.set_window_title(title)
+
+        self.save_file_as_action.setEnabled(True)
+
+        self.text_raw     = self.text_editor.toPlainText()
+        self.text_split   = tuple(TranslationDict.split_into_strokable_units(self.text_raw))
+
+        self._reset()
+
     def on_restart_button_pressed(self):
-        print(f"HERE", flush=True)
+        self._reset()
 
     def on_line_edit_text_edited(self, content):
 
-        if self.run_state != RunState.PRACTICING:
+        if self.run_state == RunState.COMPLETE:
+            return
+        elif self.run_state != RunState.PRACTICING:
             self.run_state = RunState.PRACTICING
 
         # in steno, there are different ways to write something like a double
@@ -384,13 +400,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # match; advance or finish
             if trimmed_content == self.current_unit:
-                self.text_split.pop(0)
+                self.live_split.pop(0)
                 self.text_viewer.clear()
 
                 # words are left in the split
                 # setup next unit
-                if self.text_split:
-                    self.current_unit = self.text_split[0]
+                if self.live_split:
+                    self.current_unit = self.live_split[0]
 
                     text_format.setFontUnderline(True)
                     text_format.setForeground(QtGui.QBrush(BLACK))
@@ -398,19 +414,16 @@ class MainWindow(QtWidgets.QMainWindow):
                     cursor.insertText(self.current_unit)
                     text_format.setFontUnderline(False)
                     cursor.setCharFormat(text_format)
-                    cursor.insertText(' '+' '.join(self.text_split[1:]))
-                    cursor.setPosition(0)
+                    cursor.insertText(' '+' '.join(self.live_split[1:]))
 
                     self.line_edit.clear()
 
                 # no words left; done
                 else:
-
-                    text_format.setFontWeight(10)
-                    cursor.setCharFormat(text_format)
                     cursor.insertText("CONGRATS!")
                     self.line_edit.clear()
-                    self.run_state =  RunState.COMPLETE
+                    self.line_edit.setEnabled(False)
+                    self.run_state = RunState.COMPLETE
 
             # contents don't match
             # color the first unit
