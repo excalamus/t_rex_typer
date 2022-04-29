@@ -126,8 +126,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.init_widgets()
         self.init_layout()
 
-        self.line_edit.setFocus()
-        self.run_state = RunState.READY
+        if IS_DEV_DEBUG:
+            self.line_edit.setFocus()
+        else:
+            self.text_editor.setFocus()
 
     def get_run_state(self):
         return self._run_state
@@ -199,14 +201,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_editor.setPlaceholderText('Put practice words here...')
         self.text_editor.textChanged.connect(self.on_text_edit_changed)
 
-        text = ("It's the case that every effort has been made to 'replicate' this text as")
-                # "faithfully as possible, including inconsistencies in spelling"
-                # "and hyphenation.  Some corrections of spelling and punctuation"
-                # "have been made. They are listed at the end of the text.")
+        if IS_DEV_DEBUG:
+            text = ("It's the case that every effort has been made to 'replicate' this text as"
+                    "faithfully as possible, including inconsistencies in spelling"
+                    "and hyphenation.  Some corrections of spelling and punctuation"
+                    "have been made. They are listed at the end of the text.")
 
-        text = "this is a test"
+            text = "this is a test"
 
-        self.text_editor.setText(text)
+            self.text_editor.setText(text)
 
         # start
         self.restart_button = QtWidgets.QPushButton("Restart")
@@ -339,24 +342,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.about_window.show()
 
     def _reset(self):
-        self.live_split   = list(self.text_split)
-        self.current_unit = self.text_split[0]
-
         self.text_viewer.clear()
-        cursor = self.text_viewer.textCursor()
-        cursor.setPosition(0)
-        text_format = cursor.charFormat()
-        text_format.setForeground(QtGui.QBrush(BLACK))
-        text_format.setFontUnderline(True)
-        cursor.insertText(self.current_unit, text_format)
-        text_format.setFontUnderline(False)
-        cursor.insertText(' '+' '.join(self.text_split[1:]), text_format)
-        cursor.setPosition(0)
-        self.text_viewer.setTextCursor(cursor)
+        if self.text_split:
+            self.live_split   = list(self.text_split)
+            self.current_unit = self.text_split[0]
 
-        self.line_edit.setEnabled(True)
+            cursor = self.text_viewer.textCursor()
+            cursor.setPosition(0)
+            text_format = cursor.charFormat()
+            text_format.setForeground(QtGui.QBrush(BLACK))
+            text_format.setFontUnderline(True)
+            cursor.insertText(self.current_unit, text_format)
+            text_format.setFontUnderline(False)
+            cursor.insertText(' '+' '.join(self.text_split[1:]), text_format)
+            cursor.setPosition(0)
+            self.text_viewer.setTextCursor(cursor)
 
-        self.run_state = RunState.READY
+            self.line_edit.setEnabled(True)
+
+            self.run_state = RunState.READY
 
     def on_text_edit_changed(self):
         title = '*'
@@ -367,8 +371,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.save_file_as_action.setEnabled(True)
 
-        self.text_raw     = self.text_editor.toPlainText()
-        self.text_split   = tuple(TranslationDict.split_into_strokable_units(self.text_raw))
+        self.text_raw   = self.text_editor.toPlainText()
+        self.text_split = tuple(TranslationDict.split_into_strokable_units(self.text_raw))
 
         self._reset()
 
