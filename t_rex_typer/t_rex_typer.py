@@ -1,13 +1,31 @@
 import os
 import sys
-from translation_dict import TranslationDict
 
+import logging
+log = logging.getLogger(__name__)
+logging.basicConfig(format='%(levelname)s: [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
+
+import argparse
+from translation_dict import TranslationDict
 from PySide2 import QtCore, QtWidgets, QtGui
+
+
+def my_excepthook(etype, value, tb):
+    print(f"", flush=True)
+    import traceback
+    traceback.print_exception(etype, value, tb)
+    print(f"Entering post-mortem debugger...\n", flush=True)
+    import pdb; pdb.pm()
+
+sys.excepthook = my_excepthook
 
 
 APPLICATION_NAME  = "T-Rex Typer"
 APPLICATION_ICON  = "resources/trex_w_board_48.png"
 DEFAULT_DIRECTORY = os.path.expanduser("~")
+IS_DEV_DEBUG = True if os.getenv('DEV_DEBUG').lower() in ['1', 'true'] else False
+
+
 
 
 class TextLabel(QtWidgets.QTextEdit):
@@ -162,12 +180,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_editor.setPlaceholderText('Put practice words here...')
         self.text_editor.textChanged.connect(self.on_text_edit_changed)
 
-        text = ("It's \"the\" 'case' :that;.$every effort has been made to replicate this text as faithfully as "
-                "possible, including inconsistencies in spelling and hyphenation.  Some "
-                "corrections of spelling and punctuation have been made. They are "
-                "listed at the end of the text.")
+        text = ("It's the case that every effort has been made to 'replicate' this text as")
+                # "faithfully as possible, including inconsistencies in spelling"
+                # "and hyphenation.  Some corrections of spelling and punctuation"
+                # "have been made. They are listed at the end of the text.")
 
         self.text_editor.setText(text)
+
+        # start
+        self.restart_button = QtWidgets.QPushButton("Restart")
+        self.restart_button.pressed.connect(self.on_restart_button_pressed)
 
     def init_layout(self):
 
@@ -211,6 +233,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Frame right
         self.fr_layout = QtWidgets.QVBoxLayout()
         self.fr_layout.setContentsMargins(0, 0, 0, 0)
+        self.fr_layout.addWidget(self.restart_button)
 
         self.frame_right = QtWidgets.QFrame()
         self.frame_right.setLayout(self.fr_layout)
@@ -317,15 +340,20 @@ class MainWindow(QtWidgets.QMainWindow):
         cursor.setPosition(0)
         self.text_viewer.setTextCursor(cursor)
 
+    def on_restart_button_pressed(self):
+        print(f"HERE", flush=True)
 
     def on_line_edit_text_edited(self, content):
 
-        # in steno, if the word is something like a double quote, there are
-        # different ways to write that. One stroke puts a space first to
-        # manage sentance spacing. This leading space would mess with the
-        # content comparison if we didn't trim.  The user would begin using
-        # the wrong stroke for the situation which is the opposite purpose
-        # of this tool.
+        if self.run_state != RunState.PRACTICING:
+            self.run_state = RunState.PRACTICING
+
+        # in steno, there are different ways to write something like a double
+        # quote.  One stroke puts a space first to manage sentance spacing.
+        # Another puts a space after.  A leading space would mess with the
+        # content comparison if we didn't trim.  The user would begin using the
+        # wrong stroke for the situation which is the opposite purpose of this
+        # tool.
         trimmed_content = content.strip()
 
         # position is "between" characters; index is "on" characters
@@ -339,32 +367,39 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if trimmed_content:
 
+            # match; advance or finish
             if trimmed_content == self.current_unit:
                 self.text_split.pop(0)
                 self.text_viewer.clear()
 
+                # words are left in the split
+                # setup next unit
                 if self.text_split:
                     self.current_unit = self.text_split[0]
 
-                    # cursor.setPosition(0)
                     text_format.setFontUnderline(True)
-                    text_format.setForeground(QtGui.QBrush(QtGui.QColor(0, 0, 0)))  # black
+                    text_format.setForeground(QtGui.QBrush(BLACK))
                     cursor.setCharFormat(text_format)
                     cursor.insertText(self.current_unit)
                     text_format.setFontUnderline(False)
                     cursor.setCharFormat(text_format)
                     cursor.insertText(' '+' '.join(self.text_split[1:]))
-                    # cursor.setPosition(0)
+                    cursor.setPosition(0)
 
                     self.line_edit.clear()
+
+                # no words left; done
                 else:
-                    # done
+
                     text_format.setFontWeight(10)
                     cursor.setCharFormat(text_format)
                     cursor.insertText("CONGRATS!")
                     self.line_edit.clear()
+                    self.run_state =  RunState.COMPLETE
+
+            # contents don't match
+            # color the first unit
             else:
-                # recolor the first unit
                 cursor.setPosition(1)
 
                 for i, c in enumerate(self.current_unit):
@@ -377,9 +412,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     text_format.setForeground(QtGui.QBrush(color))
                     cursor.insertText(c, text_format)
                     cursor.setPosition(cursor.position()+1)
+
+        # no content–user deleted all input.  The line edit content changed, but
+        # the content is an empty string.  However, the viewer shows gray since
+        # they had previously entered something.  This case handles recoloring
+        # the first char.
         else:
-            # If at position 0, then content is empty and the first char remains
-            # gray.
             cursor.setPosition(1)
             cursor.deletePreviousChar()
             text_format.setForeground(QtGui.QBrush(BLACK))
@@ -394,7 +432,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-    # TODO logging
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--log-level",
+                        help="set log level.  Default is 'info'.  Use 'debug' for more logging.",
+                        choices=['info', 'debug'], type=str)
+    args = parser.parse_args()
+
+    if IS_DEV_DEBUG or args.log_level == 'debug':
+        log.setLevel(logging.DEBUG)
+        logging.getLogger("settings").setLevel(logging.DEBUG)
+        log.warning(f'RUNNING IN DEBUG MODE')
+
     app = QtWidgets.QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon(APPLICATION_ICON))
 
