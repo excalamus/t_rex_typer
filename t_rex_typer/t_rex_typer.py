@@ -26,6 +26,10 @@ DEFAULT_DIRECTORY = os.path.expanduser("~")
 IS_DEV_DEBUG = True if os.getenv('DEV_DEBUG').lower() in ['1', 'true'] else False
 
 
+class RunState:
+    COMPLETE   = 0
+    PRACTICING = 1
+    READY      = 2
 
 
 class TextLabel(QtWidgets.QTextEdit):
@@ -118,6 +122,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.init_layout()
 
         self.line_edit.setFocus()
+        self.run_state = RunState.READY
+
+    def get_run_state(self):
+        return self._run_state
+
+    # TODO add logging
+    def set_run_state(self, value):
+        self._run_state = value
+
+    run_state = property(get_run_state, set_run_state)
 
     def init_widgets(self):
 
