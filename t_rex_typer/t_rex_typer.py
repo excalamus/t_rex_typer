@@ -13,14 +13,20 @@ from widgets import TabSafeLineEdit, TextLabel
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
-def my_excepthook(etype, value, tb):
-    print(f"", flush=True)
-    import traceback
-    traceback.print_exception(etype, value, tb)
-    print(f"Entering post-mortem debugger...\n", flush=True)
-    import pdb; pdb.pm()
+###########
+# Globals #
+###########
+IS_DEV_DEBUG = True if os.getenv('DEV_DEBUG').lower() in ['1', 'true'] else False
 
-sys.excepthook = my_excepthook
+if IS_DEV_DEBUG:
+    def my_excepthook(etype, value, tb):
+        print(f"", flush=True)
+        import traceback
+        traceback.print_exception(etype, value, tb)
+        print(f"Entering post-mortem debugger...\n", flush=True)
+        import pdb; pdb.pm()
+
+    sys.excepthook = my_excepthook
 
 BLACK = QtGui.QColor(0, 0, 0)
 GRAY  = QtGui.QColor(190, 190, 190)
@@ -28,7 +34,6 @@ GRAY  = QtGui.QColor(190, 190, 190)
 APPLICATION_NAME  = "T-Rex Typer"
 APPLICATION_ICON  = "resources/trex_w_board_48.png"
 DEFAULT_DIRECTORY = os.path.expanduser("~")
-IS_DEV_DEBUG = True if os.getenv('DEV_DEBUG').lower() in ['1', 'true'] else False
 
 
 class RunState(Enum):
