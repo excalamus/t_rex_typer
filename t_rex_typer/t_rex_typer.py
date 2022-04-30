@@ -36,19 +36,48 @@ class RunState(Enum):
     READY      = 2
 
 
-class FocusSafeLineEdit(QtWidgets.QLineEdit):
-    """Tab inserting line edit.
+class TabSafeLineEdit(QtWidgets.QLineEdit):
+    """Line edit with tab key control.
 
     The default QLineEdit will exit the widget when tab is pressed.
-    Focus will leave regardless of the focusPolicy.  Steno strokes may
-    include tab characters.  It is disruptive to have the focus change
-    when practicing.  This widget prevents focus from changing.
+    This may be undesirable (e.g. entering steno strokes in a practice
+    program changes the input focus).  This widget prevents focus from
+    changing.
+
+    Parameters
+    ----------
+
+    tab_action : callable, optional
+
+      Callable to be executed on tab press.  Default inserts a tab
+      character.
+
+    parent : Qwidget
+
+      Parent widget.
 
     """
 
+    def __init__(self, tab_action=None, parent=None):
+        super().__init__(parent)
+
+        if not tab_action:
+            def action_closure():
+                self.insert("\t")
+
+            self._tab_action = action_closure
+
+    # Focus will leave regardless of the focusPolicy.  Tab is not
+    # caught by keyPressEvent.  The documentation states,
+    #
+    #     "There are also some rather obscure events described in the
+    #     documentation for Type . To handle these events, you need to
+    #     reimplement event() directly."
+    #
+    # https://doc.qt.io/qtforpython-5/PySide2/QtWidgets/QWidget.html?highlight=qwidget#events
     def event(self, event):
         if (event.type() == QtCore.QEvent.KeyPress) and (event.key()==QtCore.Qt.Key_Tab):
-            self.insert("\t")
+            self._tab_action()
             return True
 
         return QtWidgets.QLineEdit.event(self, event)
@@ -222,7 +251,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_viewer = TextLabel(self)
 
         # Line edit
-        self.line_edit = FocusSafeLineEdit()
+        self.line_edit = TabSafeLineEdit()
 
         # setText doesn't trigger edited signal (only changed signal)
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
