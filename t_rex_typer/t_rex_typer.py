@@ -36,7 +36,43 @@ class RunState(Enum):
     READY      = 2
 
 
+class FocusSafeLineEdit(QtWidgets.QLineEdit):
+    """Tab inserting line edit.
+
+    The default QLineEdit will exit the widget when tab is pressed.
+    Focus will leave regardless of the focusPolicy.  Steno strokes may
+    include tab characters.  It is disruptive to have the focus change
+    when practicing.  This widget prevents focus from changing.
+
+    """
+
+    def event(self, event):
+        if (event.type() == QtCore.QEvent.KeyPress) and (event.key()==QtCore.Qt.Key_Tab):
+            self.insert("\t")
+            return True
+
+        return QtWidgets.QLineEdit.event(self, event)
+
+
 class TextLabel(QtWidgets.QTextEdit):
+    """Enhanced text label.
+
+    This widget is a QTextEdit styled to look like a QLabel.  QLabels
+    handle color only through markup which complicates text
+    manipulation.  QTextEdits provide cursors which can style text
+    using object properties.
+
+    Parameters
+    ----------
+    text : str
+
+      Text to display.
+
+    parent : QWidget, optional
+
+      Parent widget.  Default is None.
+
+    """
 
     def __init__(self, text='', parent=None):
         super().__init__()
@@ -57,9 +93,9 @@ class TextLabel(QtWidgets.QTextEdit):
         self.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
         self.setReadOnly(True)
 
-        # TODO this is set one time. If the font is changed, the font_metrics
-        # object is not updated nor is the height.  This also prevents the
-        # widget from resizing as might be expected_char when compared to a QLabel.
+        # NOTE Widget height isn't updated auto changed on font change.  This
+        # prevents the widget from resizing as might be expected when compared
+        # to a QLabel.
         font_metrics = QtGui.QFontMetrics(self.font())
         height = font_metrics.height() + (self.frameWidth()) * 2
         self.setFixedHeight(height)
@@ -186,7 +222,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_viewer = TextLabel(self)
 
         # Line edit
-        self.line_edit = QtWidgets.QLineEdit()
+        self.line_edit = FocusSafeLineEdit()
 
         # setText doesn't trigger edited signal (only changed signal)
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
