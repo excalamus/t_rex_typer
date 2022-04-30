@@ -19,12 +19,81 @@ class TranslationDict:
 
       Iterable of paths to Plover dictionaries.
 
-
     """
+
+    #############
+    # Internals #
+    #############
+    # TranslationDict is not actually a dict.  The dict implementation
+    # prevents it from working well with inheritance[1].  The
+    # TranslationDict emulates a dict using the API given in the
+    # Python documentation "(python) Emulating container types".
+    #
+    # INTERNALS SHOULD USE 'self._data'.  EXTERNALS SHOULD USE 'self'.
+    #
+    # [1] https://web.archive.org/web/20220313103021/https://treyhunner.com/2019/04/why-you-shouldnt-inherit-from-list-and-dict-in-python/
 
     def __init__(self, plover_dicts=None):
         self._data = {}
         self._data = self.load(plover_dicts)
+
+    def __repr__(self):
+        return self._data.__repr__()
+
+    ##################################
+    # Internals: container emulation #
+    ##################################
+
+    # The following functions are part of the Python API for dict-like
+    # behavior. Details can be found in the Python documentation
+    # "(python) Emulating container types".
+
+    def pop(self, key, default=None):
+        return self._data.pop(key, default)
+
+    def __setitem__(self, key, value):
+        self._data[key] = value
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def keys(self):
+        if not self._data:
+            raise KeyError("No dictionary loaded.")
+        return self._data.keys()
+
+    def values(self):
+        # get_strokes fails on IndexError when getting first element
+        # when no dictionary loaded.
+        if not self._data:
+            raise ValueError("No dictionary loaded.")
+        return self._data.values()
+
+    def items(self):
+        if not self._data:
+            raise ValueError("No dictionary loaded.")
+        return self._data.items()
+
+    def __iter__(self):
+        return self._data.__iter__()
+
+    def __contains__(self, item):
+        return item in self._data
+
+    def __len__(self):
+        return len(self._data)
+
+    def get(self, key, default=None):
+        try:
+            return self._data[key]
+        except KeyError:
+            return default
+
+    #############
+    # Externals #
+    #############
+
+    # WARNING: DO NOT USE 'self._data' BEYOND THIS POINT! USE 'self'.
 
     @classmethod
     def load(self, to_load=None):
@@ -193,55 +262,3 @@ class TranslationDict:
         split = self.split_into_strokable_units(text)
         translation = [self.get_strokes(w)[0] for w in split]
         return translation
-
-    def __repr__(self):
-        return self._data.__repr__()
-
-    #######################
-    # container emulation #
-    #######################
-
-    # The following functions are part of the Python API for dict-like
-    # behavior. Details can be found in the Python documentation
-    # (python) Emulating container types.
-
-    def pop(self, key, default=None):
-        return self._data.pop(key, default)
-
-    def __setitem__(self, key, value):
-        self._data[key] = value
-
-    def __getitem__(self, key):
-        return self._data[key]
-
-    def keys(self):
-        if not self._data:
-            raise KeyError("No dictionary loaded.")
-        return self._data.keys()
-
-    def values(self):
-        # get_strokes fails on IndexError when getting first element
-        # when no dictionary loaded.
-        if not self._data:
-            raise ValueError("No dictionary loaded.")
-        return self._data.values()
-
-    def items(self):
-        if not self._data:
-            raise ValueError("No dictionary loaded.")
-        return self._data.items()
-
-    def __iter__(self):
-        return self._data.__iter__()
-
-    def __contains__(self, item):
-        return item in self._data
-
-    def __len__(self):
-        return len(self._data)
-
-    def get(self, key, default=None):
-        try:
-            return self._data[key]
-        except KeyError:
-            return default
