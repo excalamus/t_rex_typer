@@ -60,6 +60,7 @@ class TranslationDict:
 
         return temp
 
+    # TODO change "phrase" to proper term
     def _get_stroke_indices(self, phrase):
         """Find indices of all strokes matching a phrase.
 
@@ -78,11 +79,11 @@ class TranslationDict:
 
         """
 
-        # TODO fails for some words and punctuation.  This may be
+        # TODO fails to find some words and punctuation.  This may be
         # because of the direct comparison.  A phrase may map to
         # something like '{~|"^}' (i.e. double quote, KW-GS).
 
-        return [i for i, entry in enumerate(list(self._data.values()))
+        return [i for i, entry in enumerate(list(self.values()))
                 if entry == phrase.lower().strip()]
 
     def get_strokes(self, phrase, sorted=True):
@@ -107,10 +108,10 @@ class TranslationDict:
 
         """
 
-        # TODO performance
+        # TODO performance?
 
         indices = self._get_stroke_indices(phrase)
-        strokes = [list(self._data.keys())[i] for i in indices]
+        strokes = [list(self.keys())[i] for i in indices]
         if sorted:
             strokes.sort(key=len)
         return strokes
@@ -214,12 +215,20 @@ class TranslationDict:
         return self._data[key]
 
     def keys(self):
+        if not self._data:
+            raise KeyError("No dictionary loaded.")
         return self._data.keys()
 
     def values(self):
+        # get_strokes fails on IndexError when getting first element
+        # when no dictionary loaded.
+        if not self._data:
+            raise ValueError("No dictionary loaded.")
         return self._data.values()
 
     def items(self):
+        if not self._data:
+            raise ValueError("No dictionary loaded.")
         return self._data.items()
 
     def __iter__(self):
