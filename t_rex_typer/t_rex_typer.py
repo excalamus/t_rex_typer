@@ -9,6 +9,7 @@ logging.basicConfig(format='%(levelname)s: [%(filename)s:%(lineno)d] %(message)s
 import argparse
 from enum import Enum
 from translation_dict import TranslationDict
+from widgets import TabSafeLineEdit, TextLabel
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
@@ -34,79 +35,6 @@ class RunState(Enum):
     COMPLETE   = 0
     PRACTICING = 1
     READY      = 2
-
-
-class TabSafeLineEdit(QtWidgets.QLineEdit):
-    """Line edit with tab key control.
-
-    The default QLineEdit will exit the widget when tab is pressed.
-    This may be undesirable (e.g. entering steno strokes in a practice
-    program changes the input focus).  This widget prevents focus from
-    changing.
-
-    """
-
-    # Focus will leave regardless of the focusPolicy.  Tab is not
-    # caught by keyPressEvent.  The documentation states,
-    #
-    #     "There are also some rather obscure events described in the
-    #     documentation for Type . To handle these events, you need to
-    #     reimplement event() directly."
-    #
-    # https://doc.qt.io/qtforpython-5/PySide2/QtWidgets/QWidget.html?highlight=qwidget#events
-    def event(self, event):
-        if (event.type() == QtCore.QEvent.KeyPress) and (event.key()==QtCore.Qt.Key_Tab):
-            self._tab_action()
-            return True
-
-        return QtWidgets.QLineEdit.event(self, event)
-
-
-class TextLabel(QtWidgets.QTextEdit):
-    """Enhanced text label.
-
-    This widget is a QTextEdit styled to look like a QLabel.  QLabels
-    handle color only through markup which complicates text
-    manipulation.  QTextEdits provide cursors which can style text
-    using object properties.
-
-    Parameters
-    ----------
-    text : str
-
-      Text to display.
-
-    parent : QWidget, optional
-
-      Parent widget.  Default is None.
-
-    """
-
-    def __init__(self, text='', parent=None):
-        super().__init__()
-
-        if parent:
-            color = parent.palette().background().color()
-        else:
-            color = QtGui.QColor(239, 239, 239)  # the default light gray
-
-        p =  self.viewport().palette()
-        p.setColor(self.viewport().backgroundRole(), color)
-        self.viewport().setPalette(p)
-
-        self.document().setDocumentMargin(0)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
-        self.setReadOnly(True)
-
-        # NOTE Widget height isn't updated auto changed on font change.  This
-        # prevents the widget from resizing as might be expected when compared
-        # to a QLabel.
-        font_metrics = QtGui.QFontMetrics(self.font())
-        height = font_metrics.height() + (self.frameWidth()) * 2
-        self.setFixedHeight(height)
 
 
 class AboutWindow(QtWidgets.QWidget):
