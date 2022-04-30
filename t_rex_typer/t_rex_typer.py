@@ -44,28 +44,7 @@ class TabSafeLineEdit(QtWidgets.QLineEdit):
     program changes the input focus).  This widget prevents focus from
     changing.
 
-    Parameters
-    ----------
-
-    tab_action : callable, optional
-
-      Callable to be executed on tab press.  Default inserts a tab
-      character.
-
-    parent : Qwidget
-
-      Parent widget.
-
     """
-
-    def __init__(self, tab_action=None, parent=None):
-        super().__init__(parent)
-
-        if not tab_action:
-            def action_closure():
-                self.insert("\t")
-
-            self._tab_action = action_closure
 
     # Focus will leave regardless of the focusPolicy.  Tab is not
     # caught by keyPressEvent.  The documentation states,
