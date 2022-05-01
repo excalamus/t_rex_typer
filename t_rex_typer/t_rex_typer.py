@@ -91,6 +91,12 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
 
+        self.settings = QtCore.QSettings(
+            QtCore.QSettings.IniFormat, QtCore.QSettings.UserScope,
+            APPLICATION_NAME, APPLICATION_NAME)
+
+        self.settings.setFallbacksEnabled(False)
+
         self.setWindowTitle(APPLICATION_NAME)
 
         self.current_file = None
@@ -102,6 +108,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.init_widgets()
         self.init_layout()
+
+        self._load_settings()
 
         if IS_DEV_DEBUG:
             self.line_edit.setFocus()
@@ -240,6 +248,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.frame_right.setLayout(self.fr_layout)
         self.frame_right.setFrameStyle(QtWidgets.QFrame.Box | QtWidgets.QFrame.Sunken)
 
+        # TODO first load frame sizes
         # Place frames in splitters
         self.splitter_h = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.splitter_v = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
@@ -433,10 +442,46 @@ class MainWindow(QtWidgets.QMainWindow):
             text_format.setForeground(QtGui.QBrush(BLACK))
             cursor.insertText(self.current_unit[0], text_format)
 
+    def _load_settings(self):
+        # main window
+        self.restoreGeometry(self.settings.value("geometry", self.saveGeometry()))
+        self.restoreState(self.settings.value("state", self.saveState()))
+        self.resize(self.settings.value("size", self.size()))
+        self.move(self.settings.value("pos", self.pos()))
+
+        if self.settings.value("maximized", 'false').lower() == 'true':
+            self.showMaximized()
+
+        # splitters
+        splitter_h_state = self.settings.value("state_splitter_h", self.splitter_h.saveState())
+        self.splitter_h.restoreState(splitter_h_state)
+
+        splitter_v_state = self.settings.value("state_splitter_v", self.splitter_v.saveState())
+        self.splitter_v.restoreState(splitter_v_state)
+
+        log.info(f"Loaded settings: {self.settings.fileName()}")
+
+    def _save_settings(self):
+        # main window
+        self.settings.setValue("geometry", self.saveGeometry())
+        self.settings.setValue("state", self.saveState())
+        self.settings.setValue("pos", self.pos())
+        self.settings.setValue("size", self.size())
+        self.settings.setValue("maximized", self.isMaximized())
+
+        # splitters
+        self.settings.setValue("state_splitter_h", self.splitter_h.saveState())
+        self.settings.setValue("state_splitter_v", self.splitter_v.saveState())
+
+        self.settings.sync()
+        log.info(f"Saved settings: {self.settings.fileName()}")
+
     def closeEvent(self, event):
         # since MainWindow is not parent, must close manually
         self.about_window.close()
         del self.about_window
+
+        self._save_settings()
 
         event.accept()
 
