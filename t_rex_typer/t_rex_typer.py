@@ -33,7 +33,11 @@ GRAY  = QtGui.QColor(190, 190, 190)
 
 APPLICATION_NAME  = "T-Rex Typer"
 APPLICATION_ICON  = "resources/trex_w_board_48.png"
-DEFAULT_DIRECTORY = os.path.expanduser("~")
+
+if IS_DEV_DEBUG:
+    DEFAULT_DIRECTORY = "/home/ahab/Projects/t_rex_typer/scratch/"
+else:
+    DEFAULT_DIRECTORY = os.path.expanduser("~")
 
 
 class RunState(Enum):
