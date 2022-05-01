@@ -134,23 +134,23 @@ class MainWindow(QtWidgets.QMainWindow):
         # menu
         self.open_file_action = QtWidgets.QAction('&Open', self)
         self.open_file_action.setShortcut('Ctrl+O')
-        self.open_file_action.setStatusTip('Open...')
+        self.open_file_action.setToolTip('Open...')
         self.open_file_action.triggered.connect(self.on_open_file)
 
         self.save_file_action = QtWidgets.QAction('&Save', self)
         self.save_file_action.setEnabled(False)
         self.save_file_action.setShortcut('Ctrl+S')
-        self.save_file_action.setStatusTip('Save')
+        self.save_file_action.setToolTip('Save')
         self.save_file_action.triggered.connect(self.on_save_file)
 
         self.save_file_as_action = QtWidgets.QAction('Save &As...', self)
-        self.save_file_as_action.setStatusTip('Save As')
+        self.save_file_as_action.setToolTip('Save As')
         self.save_file_as_action.setEnabled(False)
         self.save_file_as_action.triggered.connect(self.on_save_file_as)
 
         self.exit_action = QtWidgets.QAction('&Exit', self)
         self.exit_action.setShortcut("Escape")
-        self.exit_action.setStatusTip('Exit application')
+        self.exit_action.setToolTip('Exit application')
         self.exit_action.triggered.connect(self.close)
 
         self.about_action = QtWidgets.QAction('&About', self)
@@ -159,6 +159,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.menu_bar = self.menuBar()
 
         self.file_menu = self.menu_bar.addMenu('&File')
+        self.file_menu.setToolTipsVisible(True)
         self.file_menu.aboutToShow.connect(self.on_file_menu_about_to_show)
         self.file_menu.addAction(self.open_file_action)
         self.file_menu.addAction(self.save_file_action)
@@ -166,6 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_menu.addAction(self.exit_action)
 
         self.help_menu = self.menu_bar.addMenu('&Help')
+        self.help_menu.setToolTipsVisible(True)
         self.help_menu.addAction(self.about_action)
 
         # no parent so that a separate window is used
