@@ -34,10 +34,14 @@ GRAY  = QtGui.QColor(190, 190, 190)
 APPLICATION_NAME  = "T-Rex Typer"
 APPLICATION_ICON  = "resources/trex_w_board_48.png"
 
+DEFAULT_SETTINGS = {
+    "dictionary_path": os.path.expanduser("~"),
+    "lesson_directory": os.path.expanduser("~"),
+}
+
 if IS_DEV_DEBUG:
-    DEFAULT_DIRECTORY = "/home/ahab/Projects/t_rex_typer/scratch/"
-else:
-    DEFAULT_DIRECTORY = os.path.expanduser("~")
+    DEFAULT_SETTINGS["dictionary_path"] = "/home/ahab/Projects/t_rex_typer/scratch/"
+    DEFAULT_SETTINGS["lesson_directory"] = "/home/ahab/Projects/t_rex_typer/scratch/"
 
 
 class RunState(Enum):
@@ -46,15 +50,97 @@ class RunState(Enum):
     READY      = 2
 
 
-class AboutWindow(QtWidgets.QWidget):
+class SettingsWindow(QtWidgets.QWidget):
+
+    def init_widgets(self):
+
+        # restore defaults
+        self.restore_defaults_link = QtWidgets.QLabel('<a href=".">Restore defaults</a>')
+        self.restore_defaults_link.setToolTip("Restore default settings")
+        self.restore_defaults_link.linkActivated.connect(self.on_restore_defaults_link_activated)
+
+        # button box
+        self.button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok |
+            QtWidgets.QDialogButtonBox.Cancel |
+            QtWidgets.QDialogButtonBox.Apply)
+
+        self.ok_button = self.button_box.buttons()[0]
+        self.ok_button.setToolTip("Apply changes and close window")
+        self.button_box.accepted.connect(self.on_ok_clicked)
+
+        self.cancel_button = self.button_box.buttons()[1]
+        self.cancel_button.setToolTip("Close window without applying changes")
+        self.button_box.rejected.connect(self.close)
+
+        self.apply_button = self.button_box.buttons()[2]
+        self.apply_button.setToolTip("Apply changes")
+        self.apply_button.setEnabled(False)
+
+        self.apply_button.clicked.connect(self.apply_settings)
+
+    def init_layout(self):
+
+        # restore defaults
+        self.restore_defaults_layout = QtWidgets.QHBoxLayout()
+        self.restore_defaults_layout.addWidget(QtWidgets.QWidget(), stretch=1)
+        self.restore_defaults_layout.addWidget(self.restore_defaults_link)
+
+        # button box
+        self.button_layout = QtWidgets.QHBoxLayout()
+        self.button_layout.addWidget(QtWidgets.QWidget(), stretch=1)
+        self.button_layout.addWidget(self.button_box)
+
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addLayout(self.restore_defaults_layout)
+        self.layout.addLayout(self.button_layout)
+        self.setLayout(self.layout)
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.setWindowTitle(f'About {APPLICATION_NAME}')
+        self._modified = False
+        self.setWindowTitle(f'Settings {APPLICATION_NAME}')
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
         self.init_widgets()
         self.init_layout()
+
+    def toggle_modified(self, modified=True):
+        if isinstance(status, bool):
+            self._modified = not status
+
+        if not self._modified:
+            self.apply_button.setEnabled(True)
+            self.setWindowTitle('Settings {APPLICATION_NAME}*')
+            self._modified = True
+        else:
+            self.apply_button.setEnabled(False)
+            self.setWindowTitle('Settings {APPLICATION_NAME}')
+            self._modified = False
+
+    # TODO
+    def restore_defaults(self):
+        pass
+
+    # TODO
+    def apply_settings(self):
+        pass
+
+    # TODO
+    def on_restore_defaults_link_activated(self):
+        pass
+
+    def on_ok_clicked(self):
+        self.apply_settings()
+        self.close()
+
+    def closeEvent(self, event):
+        event.accept()
+
+
+class AboutWindow(QtWidgets.QWidget):
 
     def init_widgets(self):
         self.body_title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON}">About</h1>')
@@ -80,6 +166,16 @@ class AboutWindow(QtWidgets.QWidget):
         self.layout.addWidget(self.body, stretch=1)
         self.setLayout(self.layout)
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle(f'About {APPLICATION_NAME}')
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+
+        self.init_widgets()
+        self.init_layout()
+
     def on_hover(self, link):
         if link:
             QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), link)
@@ -92,61 +188,75 @@ class AboutWindow(QtWidgets.QWidget):
 
 class MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self):
-        super().__init__()
+    #######################
+    # Settings properties #
+    #######################
 
-        self.settings = QtCore.QSettings(
-            QtCore.QSettings.IniFormat, QtCore.QSettings.UserScope,
-            APPLICATION_NAME, APPLICATION_NAME)
+    # Provide an easier call, as well as logging, for settings values
 
-        self.settings.setFallbacksEnabled(False)
+    def _get_dictionary_path(self):
+        return self.settings.value("dictionary_path", DEFAULT_SETTINGS["dictionary_path"])
 
-        self.setWindowTitle(APPLICATION_NAME)
+    def _set_dictionary_path(self, value):
+        self.settings.setValue("dictionary_path", value)
+        log.debug(f"Set 'dictionary_path': {value}")
+        self.settings.sync()
+        log.info(f"Saved settings: {self.settings.fileName()}")
 
-        self.current_file = None
+    dictionary_path = property(_get_dictionary_path, _set_dictionary_path)
 
-        self.text_raw = ''
-        self.text_split = ()
-        self.live_split = []
-        self.current_unit = ''
+    def _get_lesson_directory(self):
+        return self.settings.value("lesson_directory", DEFAULT_SETTINGS["lesson_directory"])
 
-        self.init_widgets()
-        self.init_layout()
+    def _set_lesson_directory(self, value):
+        self.settings.setValue("lesson_directory", value)
+        log.debug(f"Set 'lesson_directory': {value}")
+        self.settings.sync()
+        log.info(f"Saved settings: {self.settings.fileName()}")
 
-        self._load_settings()
+    lesson_directory = property(_get_lesson_directory, _set_lesson_directory)
 
-        if IS_DEV_DEBUG:
-            self.line_edit.setFocus()
-        else:
-            self.text_editor.setFocus()
+    ###########################
+    # Non-Settings properties #
+    ###########################
 
-    def get_run_state(self):
+    def _get_run_state(self):
         return self._run_state
 
-    def set_run_state(self, value):
+    def _set_run_state(self, value):
         self._run_state = value
         log.debug(f"{self._run_state=}")
 
-    run_state = property(get_run_state, set_run_state)
+    run_state = property(_get_run_state, _set_run_state)
 
     def init_widgets(self):
 
-        # menu
-        self.open_file_action = QtWidgets.QAction('&Open', self)
-        self.open_file_action.setShortcut('Ctrl+O')
-        self.open_file_action.setToolTip('Open...')
-        self.open_file_action.triggered.connect(self.on_open_file)
+        ########
+        # menu #
+        ########
 
-        self.save_file_action = QtWidgets.QAction('&Save', self)
-        self.save_file_action.setEnabled(False)
-        self.save_file_action.setShortcut('Ctrl+S')
-        self.save_file_action.setToolTip('Save')
-        self.save_file_action.triggered.connect(self.on_save_file)
+        self.open_action = QtWidgets.QAction('&Open', self)
+        self.open_action.setShortcut('Ctrl+O')
+        self.open_action.setToolTip('Open..')
+        self.open_action.triggered.connect(self.on_open)
 
-        self.save_file_as_action = QtWidgets.QAction('Save &As...', self)
-        self.save_file_as_action.setToolTip('Save As')
-        self.save_file_as_action.setEnabled(False)
-        self.save_file_as_action.triggered.connect(self.on_save_file_as)
+        self.save_action = QtWidgets.QAction('&Save', self)
+        self.save_action.setEnabled(False)
+        self.save_action.setShortcut('Ctrl+S')
+        self.save_action.setToolTip('Save')
+        self.save_action.triggered.connect(self.on_save)
+
+        self.save_as_action = QtWidgets.QAction('Save &As..', self)
+        self.save_as_action.setToolTip('Save As')
+        self.save_as_action.setEnabled(False)
+        self.save_as_action.triggered.connect(self.on_save_as)
+
+        self.load_dictionary_action = QtWidgets.QAction('Load Dictionary..', self)
+        self.load_dictionary_action.setToolTip('Load and replace the current dictionary')
+        self.load_dictionary_action.triggered.connect(self.on_load_dictionary)
+
+        self.settings_action = QtWidgets.QAction('&Settings..', self)
+        self.settings_action.triggered.connect(self.on_settings_action)
 
         self.exit_action = QtWidgets.QAction('&Exit', self)
         self.exit_action.setShortcut("Escape")
@@ -154,43 +264,56 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exit_action.triggered.connect(self.close)
 
         self.about_action = QtWidgets.QAction('&About', self)
-        self.about_action.triggered.connect(self.on_about)
+        self.about_action.triggered.connect(self.on_about_action)
 
         self.menu_bar = self.menuBar()
 
         self.file_menu = self.menu_bar.addMenu('&File')
         self.file_menu.setToolTipsVisible(True)
         self.file_menu.aboutToShow.connect(self.on_file_menu_about_to_show)
-        self.file_menu.addAction(self.open_file_action)
-        self.file_menu.addAction(self.save_file_action)
-        self.file_menu.addAction(self.save_file_as_action)
+        self.file_menu.addAction(self.open_action)
+        self.file_menu.addAction(self.save_action)
+        self.file_menu.addAction(self.save_as_action)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.load_dictionary_action)
+        self.file_menu.addSeparator()
+        self.file_menu.addAction(self.settings_action)
+        self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
 
         self.help_menu = self.menu_bar.addMenu('&Help')
         self.help_menu.setToolTipsVisible(True)
         self.help_menu.addAction(self.about_action)
 
+        ############
+        # Non-menu #
+        ############
+
         # no parent so that a separate window is used
         self.about_window = AboutWindow()
+        self.settings_window = SettingsWindow()
 
         # Text viewer
         self.text_viewer = TextLabel(self)
 
         # Line edit
         self.line_edit = TabSafeLineEdit()
+        self.line_edit.setEnabled(False)
 
         # setText doesn't trigger edited signal (only changed signal)
         self.line_edit.textEdited.connect(self.on_line_edit_text_edited)
 
         # Steno label
-        # TODO
-        self.steno_label = QtWidgets.QLabel('PHROFR')
-        self.steno_label.hide()
+        self.steno_label = QtWidgets.QLabel('')
 
         # Text edit
         self.text_editor = QtWidgets.QTextEdit()
-        self.text_editor.setPlaceholderText('Put practice words here...')
+        self.text_editor.setPlaceholderText('Put practice words here..')
         self.text_editor.textChanged.connect(self.on_text_edit_changed)
+
+        # start
+        self.restart_button = QtWidgets.QPushButton("Restart")
+        self.restart_button.pressed.connect(self.on_restart_button_pressed)
 
         if IS_DEV_DEBUG:
             text = ("It's the case that every effort has been made to 'replicate' this text as"
@@ -201,10 +324,6 @@ class MainWindow(QtWidgets.QMainWindow):
             text = "this is a test"
 
             self.text_editor.setText(text)
-
-        # start
-        self.restart_button = QtWidgets.QPushButton("Restart")
-        self.restart_button.pressed.connect(self.on_restart_button_pressed)
 
     def init_layout(self):
 
@@ -254,7 +373,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.frame_right.setLayout(self.fr_layout)
         self.frame_right.setFrameStyle(QtWidgets.QFrame.Box | QtWidgets.QFrame.Sunken)
 
-        # TODO first load frame sizes
         # Place frames in splitters
         self.splitter_h = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.splitter_v = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
@@ -414,17 +532,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.set_window_title(title)
 
-        self.save_file_as_action.setEnabled(True)
+        self.save_as_action.setEnabled(True)
 
         self.text_raw   = self.text_editor.toPlainText()
         self.text_split = tuple(TranslationDict.split_into_strokable_units(self.text_raw))
 
+        # KILL
+        # dicter = TranslationDict()
+        # dicter.translate(self.text_raw)
         self._reset()
 
     def on_restart_button_pressed(self):
         self._reset()
 
-    def on_line_edit_text_edited(self, content):
+    def on_line_edit_text_edited(self, trimmed_content):
 
         if self.run_state == RunState.COMPLETE:
             return
@@ -434,10 +555,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # in steno, there are different ways to write something like a double
         # quote.  One stroke puts a space first to manage sentance spacing.
         # Another puts a space after.  A leading space would mess with the
-        # content comparison if we didn't trim.  The user would begin using the
+        # trimmed_content comparison if we didn't trim.  The user would begin using the
         # wrong stroke for the situation which is the opposite purpose of this
         # tool.
-        trimmed_content = content.strip()
+        trimmed_content = trimmed_content.strip()
 
         # position is "between" characters; index is "on" characters
         line_edit_cursor_position = self.line_edit.cursorPosition()
@@ -483,7 +604,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 for i, c in enumerate(self.current_unit):
                     color = BLACK
 
-                    if i < len(content) and content[i] == c:
+                    if i < len(trimmed_content) and trimmed_content[i] == c:
                         color = GRAY
 
                     cursor.deletePreviousChar()
@@ -491,8 +612,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     cursor.insertText(c, text_format)
                     cursor.setPosition(cursor.position()+1)
 
-        # no content–user deleted all input.  The line edit content changed, but
-        # the content is an empty string.  However, the viewer shows gray since
+        # no content–user deleted all input.  The line edit trimmed_content changed, but
+        # the trimmed_content is an empty string.  However, the viewer shows gray since
         # they had previously entered something.  This case handles recoloring
         # the first char.
         else:
@@ -539,6 +660,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # since MainWindow is not parent, must close manually
         self.about_window.close()
         del self.about_window
+
+        self.settings_window.close()
+        del self.settings_window
 
         self._save_settings()
 
