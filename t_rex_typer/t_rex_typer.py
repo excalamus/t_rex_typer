@@ -526,9 +526,13 @@ class MainWindow(QtWidgets.QMainWindow):
             self.run_state = RunState.READY
 
     def on_text_edit_changed(self):
-        title = '*'
-        if self.current_file:
-            title = self.current_file + '*'
+
+        title = ''
+        if self.lesson_file:
+            title += self.lesson_file
+
+        if self.text_editor.document().isModified():
+            title += '*'
 
         self.set_window_title(title)
 
