@@ -266,75 +266,128 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.splitter_v.addWidget(self.frame_left)
         self.splitter_v.addWidget(self.frame_right)
-        self.splitter_v.setStretchFactor(1, 1)
 
         # Central widget
         self.central_layout = QtWidgets.QHBoxLayout()
         self.central_layout.setContentsMargins(5, 5, 5, 5)
-        self.central_layout.addWidget(self.splitter_v, stretch=1)
-
+        self.central_layout.addWidget(self.splitter_v)
         self.central_widget = QtWidgets.QWidget()
         self.central_widget.setLayout(self.central_layout)
         self.setCentralWidget(self.central_widget)
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle(APPLICATION_NAME)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+
+        self._dictionary = {}
+        self.lesson_file = None
+
+        self.text_raw = ''
+        self.text_split = ()
+        self.live_split = []
+        self.current_unit = ''
+
+        self.misstrokes = 0
+
+        self.init_widgets()
+        self.init_layout()
+
+        # Settings
+        self.settings = QtCore.QSettings(
+            QtCore.QSettings.IniFormat,
+            QtCore.QSettings.UserScope,
+            APPLICATION_NAME,
+            APPLICATION_NAME)
+        self.settings.setFallbacksEnabled(False)
+        self._load_settings()
+
+        # Debug
+        if IS_DEV_DEBUG:
+            self.line_edit.setFocus()
+            # self.settings_window.show()
+            # self.settings_window.raise_()
+        else:
+            self.text_editor.setFocus()
 
     def set_window_title(self, string=''):
         self.setWindowTitle(f'{APPLICATION_NAME} - ' + str(string))
 
     def on_file_menu_about_to_show(self):
-        if self.current_file:
-            self.save_file_action.setEnabled(True)
+        if self.lesson_file:
+            self.save_action.setEnabled(True)
 
-    def on_open_file(self):
-        # TODO need a "most recent directory" for open and save as.
-
+    def on_open(self):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
-            caption='Open File',
-            dir=DEFAULT_DIRECTORY,
+            caption='Open Lesson File',
+            dir=self.lesson_directory,
             filter='Text Files (*.txt);;All (*.*)')
 
         try:
             with open(filename, 'r') as f:
-                content = f.read()
+                trimmed_content = f.read()
 
-            self.text_editor.setPlainText(content)
-            self.current_file = filename
-            self.set_window_title(self.current_file)
+            self.text_editor.setPlainText(trimmed_content)
+            self.lesson_file = filename
+            self.lesson_directory = os.path.dirname(filename)
+            self.set_window_title(self.lesson_file)
         except (FileNotFoundError):
             pass
 
-    def _on_save_file(self, filename):
+    def _save_file(self, filename):
         text = self.text_editor.toPlainText()
         try:
             with open(filename, 'w') as f:
                 f.write(text)
 
+            log.info(f"Saved: {filename}")
             self.set_window_title(filename)
+            self.text_editor.document().setModified(False)
         except Exception as err:
             self.message_box = QtWidgets.QMessageBox()
             self.message_box.setText('Error: ' + str(err))
             self.message_box.show()
 
-    def on_save_file(self):
-        self._on_save_file(self.current_file)
+    def on_save(self):
+        self._save_file(self.lesson_file)
 
-    def on_save_file_as(self):
-        # TODO global or text edit local save shortcut
+    def on_save_as(self):
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
-            caption="Save As...",
-            dir=DEFAULT_DIRECTORY,
+            caption="Save As..",
+            dir=self.lesson_directory,
             filter="Text files (*.txt);;All files (*.*)")
 
         if filename:
-            self._on_save_file(filename)
-            self.current_file = filename
+            self._save_file(filename)
+            self.lesson_file = filename
 
-    def on_about(self):
+    def on_load_dictionary(self):
+        filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
+            self,
+            caption='Open one or more Plover dictionary files',
+            dir=self.dictionary_path,
+            filter='JSON Files (*.json);;All (*.*)')
+
+        self._dictionary = TranslationDict.load(filenames)
+        log.debug(f"Loaded dictionaries: {filenames}")
+
+    def on_settings_action(self):
+        self.settings_window.show()
+        self.settings_window.raise_()
+        self.settings_window.activateWindow()
+
+    def on_about_action(self):
         self.about_window.show()
+        self.about_window.raise_()
+        self.about_window.activateWindow()
 
     def _reset(self):
         self.text_viewer.clear()
+        self.misstrokes = 0
+
         if self.text_split:
             self.live_split   = list(self.text_split)
             self.current_unit = self.text_split[0]
