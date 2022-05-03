@@ -16,7 +16,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 ###########
 # Globals #
 ###########
-IS_DEV_DEBUG = True if os.getenv('DEV_DEBUG').lower() in ['1', 'true'] else False
+IS_DEV_DEBUG = True if os.getenv('DEV_DEBUG') in ['1', 'true', 'True'] else False
 
 if IS_DEV_DEBUG:
     def my_excepthook(etype, value, tb):
