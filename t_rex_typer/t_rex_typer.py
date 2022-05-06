@@ -1,6 +1,7 @@
 import os
 import sys
 import copy
+import time
 
 import logging
 log = logging.getLogger(__name__)
@@ -38,6 +39,16 @@ DEFAULT_SETTINGS = {
     "dictionary_path": os.path.expanduser("~"),
     "lesson_directory": os.path.expanduser("~"),
 }
+
+# Accuracy measured on a per unit basis.  Without stroke information,
+# it's impossible to know whether text is a misstroke or simply part
+# of a multi-stroke phrase—Plover may delete entire words as part of a
+# multi-stroke sequence (e.g. "LEBG/TOR"->"lecture"->"elector").
+# Assuming the average word length in English is 5 characters, time in
+# seconds between characters /dt/ expressed in words given per minute
+# /w/ is dt = 12/w.  So, 0.4s is 30wpm.  TIME_BETWEEN_STROKES
+# represents the minimum acceptable speed.
+TIME_BETWEEN_STROKES = 0.4  # seconds
 
 if IS_DEV_DEBUG:
     DEFAULT_SETTINGS["dictionary_path"] = "/home/ahab/Projects/t_rex_typer/scratch/"
@@ -402,12 +413,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self._dictionary = {}
         self.lesson_file = None
 
-        self.text_raw = ''
-        self.text_split = ()
-        self.live_split = []
+        self.text_raw     = ''
+        self.text_split   = ()
+        self.live_split   = []
         self.current_unit = ''
 
-        self.misstrokes = 0
+        self.missed      = 0
+        self.last_time   = 0
+        self.maybe_miss  = False
+        self.is_miss     = False
+        self.is_new_unit = True
 
         self.init_widgets()
         self.init_layout()
@@ -504,7 +519,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _reset(self):
         self.text_viewer.clear()
-        self.misstrokes = 0
+        self.line_edit.clear()
+        self.missed = 0
+        self.last_time = 0
+        self.is_new_unit = True
 
         if self.text_split:
             self.live_split   = list(self.text_split)
@@ -541,28 +559,38 @@ class MainWindow(QtWidgets.QMainWindow):
         self.text_raw   = self.text_editor.toPlainText()
         self.text_split = tuple(TranslationDict.split_into_strokable_units(self.text_raw))
 
-        # KILL
-        # dicter = TranslationDict()
-        # dicter.translate(self.text_raw)
         self._reset()
 
     def on_restart_button_pressed(self):
         self._reset()
 
-    def on_line_edit_text_edited(self, trimmed_content):
+    def on_line_edit_text_edited(self, content):
 
         if self.run_state == RunState.COMPLETE:
             return
         elif self.run_state != RunState.PRACTICING:
             self.run_state = RunState.PRACTICING
 
-        # in steno, there are different ways to write something like a double
-        # quote.  One stroke puts a space first to manage sentance spacing.
-        # Another puts a space after.  A leading space would mess with the
-        # trimmed_content comparison if we didn't trim.  The user would begin using the
-        # wrong stroke for the situation which is the opposite purpose of this
-        # tool.
-        trimmed_content = trimmed_content.strip()
+        self.is_new_unit = False
+
+        delta = abs(time.time()-self.last_time)
+
+        if not self.is_miss and self.maybe_miss and delta > TIME_BETWEEN_STROKES:
+            # since self.maybe_miss only gets set once per unit, each
+            # unit has a maximum of 1 possible miss
+            self.missed += 1
+            # print(f"[MISS]", flush=True)
+            self.is_miss = True
+
+        self.last_time = time.time()
+
+        # in steno, there are different ways to write something like a
+        # double quote.  One stroke puts a space first to manage
+        # sentance spacing.  Another puts a space after.  A leading
+        # space would mess with the trimmed_content comparison if we
+        # didn't trim.
+        trimmed_content = content.strip()
+        # print(f"{trimmed_content}", flush=True)
 
         # position is "between" characters; index is "on" characters
         line_edit_cursor_position = self.line_edit.cursorPosition()
@@ -578,8 +606,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.live_split.pop(0)
                 self.text_viewer.clear()
 
-                # words are left in the split
-                # setup next unit
+                self.maybe_miss  = False
+                self.is_miss     = False
+                self.is_new_unit = True
+
+                # advance to next unit
                 if self.live_split:
                     self.current_unit = self.live_split[0]
 
@@ -593,38 +624,52 @@ class MainWindow(QtWidgets.QMainWindow):
 
                     self.line_edit.clear()
 
-                # no words left; done
+                # finish
                 else:
-                    cursor.insertText("CONGRATS!")
+                    total_number_units = len(self.text_split)
+                    correct = (total_number_units - self.missed)
+                    accuracy = correct / total_number_units
+                    cursor.insertText(f"CONGRATS! Accuracy: {accuracy*100:.0f}% Missed: {self.missed}")
                     self.line_edit.clear()
                     self.line_edit.setEnabled(False)
                     self.run_state = RunState.COMPLETE
 
-            # contents don't match
-            # color the first unit
+            # contents don't match current unit
             else:
+                if not self.is_miss and len(trimmed_content) > len(self.current_unit):
+                    self.maybe_miss = True
+
                 cursor.setPosition(1)
 
                 for i, c in enumerate(self.current_unit):
                     color = BLACK
 
-                    if i < len(trimmed_content) and trimmed_content[i] == c:
-                        color = GRAY
+                    if i < len(trimmed_content):
+                        if trimmed_content[i] == c:
+                            color = GRAY
+                        else:
+                            # contents have non-matching char
+                            if not self.is_miss:
+                                self.maybe_miss = True
 
                     cursor.deletePreviousChar()
                     text_format.setForeground(QtGui.QBrush(color))
                     cursor.insertText(c, text_format)
                     cursor.setPosition(cursor.position()+1)
 
-        # no content–user deleted all input.  The line edit trimmed_content changed, but
-        # the trimmed_content is an empty string.  However, the viewer shows gray since
-        # they had previously entered something.  This case handles recoloring
-        # the first char.
+        # no content–user deleted all input.
         else:
+            if not self.is_new_unit:
+                # already started and then returned to position 0
+                self.maybe_miss = True
+
+            # recolor first char
             cursor.setPosition(1)
             cursor.deletePreviousChar()
             text_format.setForeground(QtGui.QBrush(BLACK))
             cursor.insertText(self.current_unit[0], text_format)
+
+        # print(f"maybe: {self.maybe_miss}", flush=True)
 
     def _load_settings(self):
         # main window
