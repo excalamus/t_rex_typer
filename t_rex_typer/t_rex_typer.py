@@ -2,6 +2,7 @@ import os
 import sys
 import copy
 import time
+import pkgutil
 
 import logging
 log = logging.getLogger(__name__)
@@ -9,8 +10,8 @@ logging.basicConfig(format='%(levelname)s: [%(filename)s:%(lineno)d] %(message)s
 
 import argparse
 from enum import Enum
-from translation_dict import TranslationDict
-from widgets import TabSafeLineEdit, TextLabel
+from .translation_dict import TranslationDict
+from .widgets import TabSafeLineEdit, TextLabel
 from PySide2 import QtCore, QtWidgets, QtGui
 
 
@@ -32,8 +33,8 @@ if IS_DEV_DEBUG:
 BLACK = QtGui.QColor(0, 0, 0)
 GRAY  = QtGui.QColor(190, 190, 190)
 
-APPLICATION_NAME  = "T-Rex Typer"
-APPLICATION_ICON  = "resources/trex_w_board_48.png"
+APPLICATION_NAME       = "T-Rex Typer"
+APPLICATION_ICON_BYTES = pkgutil.get_data(__name__, "resources/trex_w_board_48.png")
 
 DEFAULT_SETTINGS = {
     "dictionary_path": os.path.expanduser("~"),
@@ -154,7 +155,7 @@ class SettingsWindow(QtWidgets.QWidget):
 class AboutWindow(QtWidgets.QWidget):
 
     def init_widgets(self):
-        self.body_title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON}">About</h1>')
+        self.body_title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON_BYTES}">About</h1>')
 
         body_text = (
             f'<p>The {APPLICATION_NAME} is made by Matt Trzcinski.</p>'
@@ -718,8 +719,7 @@ class MainWindow(QtWidgets.QMainWindow):
         event.accept()
 
 
-if __name__ == '__main__':
-
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-level",
                         help="set log level.  Default is 'info'.  Use 'debug' for more logging.",
@@ -732,7 +732,11 @@ if __name__ == '__main__':
         log.warning(f'RUNNING IN DEBUG MODE')
 
     app = QtWidgets.QApplication(sys.argv)
-    app.setWindowIcon(QtGui.QIcon(APPLICATION_ICON))
+
+    # do this here because QApplication must exist
+    icon_pixmap = QtGui.QPixmap()
+    icon_pixmap.loadFromData(APPLICATION_ICON_BYTES)
+    app.setWindowIcon(QtGui.QIcon(icon_pixmap))
 
     main_window = MainWindow()
     main_window.show()

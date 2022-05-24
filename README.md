@@ -1,4 +1,4 @@
-![T-Rex](/resources/trex_w_board_96.png) *Work those shorthand skills!*
+![T-Rex](t_rex_typer/resources/trex_w_board_96.png) *Exercise your shorthand!*
 
 # T-Rex Typer
 The T-Rex Typer is a desktop application used to improve steno
