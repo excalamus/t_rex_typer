@@ -133,7 +133,7 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/discussions/install-requires-vs-requirements/
-    install_requires=["PySide2==5.15.2.1"],  # Optional
+    install_requires=["PySide2>=5.15"],  # Optional
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
