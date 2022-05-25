@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 activate () {
     if [[ -z "$VIRTUAL_ENV" ]]; then
