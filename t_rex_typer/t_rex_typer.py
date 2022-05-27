@@ -155,7 +155,12 @@ class SettingsWindow(QtWidgets.QWidget):
 class AboutWindow(QtWidgets.QWidget):
 
     def init_widgets(self):
-        self.body_title = QtWidgets.QLabel(f'<h1><img src="{APPLICATION_ICON_BYTES}">About</h1>')
+        self.icon_pixmap = QtGui.QPixmap()
+        self.icon_pixmap.loadFromData(APPLICATION_ICON_BYTES)
+        self.icon_label = QtWidgets.QLabel()
+        self.icon_label.setPixmap(self.icon_pixmap)
+
+        self.body_title = QtWidgets.QLabel(f'<h1>About</h1>')
 
         body_text = (
             f'<p>The {APPLICATION_NAME} is made by Matt Trzcinski.</p>'
@@ -173,8 +178,13 @@ class AboutWindow(QtWidgets.QWidget):
         self.body.linkHovered.connect(self.on_hover)
 
     def init_layout(self):
+        self.title_layout = QtWidgets.QHBoxLayout()
+        self.title_layout.addWidget(self.icon_label)
+        self.title_layout.addWidget(self.body_title)
+        self.title_layout.addWidget(QtWidgets.QWidget(), stretch=1)
+
         self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self.body_title)
+        self.layout.addLayout(self.title_layout)
         self.layout.addWidget(self.body, stretch=1)
         self.setLayout(self.layout)
 
