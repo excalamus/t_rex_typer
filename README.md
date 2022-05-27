@@ -1,11 +1,12 @@
 ![T-Rex](t_rex_typer/resources/trex_w_board_96.png) *Exercise your shorthand!*
 
 # T-Rex Typer
-The T-Rex Typer is a desktop application to practice steno writing.
+A desktop application to practice steno writing.
 
 ![The T-Rex Typer](t_rex_typer/resources/screenshot.png)
 
 # Install
+The T-Rex Typer requires a Python environment.
 
 ```python
 pip install t_rex_typer
