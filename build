@@ -4,7 +4,7 @@ activate () {
     if [[ -z "$VIRTUAL_ENV" ]]; then
         echo "Activating venv..."
         set -e
-        source /home/user/Projects/t_rex_typer/venv/bin/activate
+        source venv/bin/activate
         echo "Activated venv"
     fi
 }
@@ -36,13 +36,31 @@ clean () {
     echo "Finished cleaning"
 }
 
-show_help () {
-    echo "build.sh"
+debug () {
+    if [[ -z "$IS_DEV_DEBUG" ]]; then
+        export DEV_DEBUG=1
+        echo "Toggled debug mode on"
+    else
+        export DEV_DEBUG=
+        echo "Toggled debug mode off"
+    fi
+}
 
-    echo "    help    - show this help"
-    echo "    build   - build PyPi packages"
-    echo "    clean   - remove build directories"
-    echo "    upgrade - upgrade build environment"
+show_help () {
+    echo "source build [OPTION]"
+
+    echo
+    echo "Peform build and development related tasks."
+    echo
+
+    echo "    help        - show this help"
+    echo "    activate    - activate virtual environment"
+    echo "    build       - build PyPi packages"
+    echo "    clean       - remove build directories"
+    echo "    debug       - toggle debug mode"
+    echo "    upgrade     - upgrade build environment"
+    echo "    upload      - upload to PyPI"
+    echo "    upload-test - upload to test PyPI"
 
 }
 
@@ -66,13 +84,15 @@ upload-test () {
 
 if [[ $1 = "help" ]]; then
     show_help
-# elif [[ $1 = "activate" ]]; then
-#     activate
+elif [[ $1 = "activate" ]]; then
+    activate
 elif [[ $1 = "build" ]]; then
     activate
     build
 elif [[ $1 = "clean" ]]; then
     clean
+elif [[ $1 = "debug" ]]; then
+    debug
 elif [[ $1 = "upgrade" ]]; then
     activate
     upgrade

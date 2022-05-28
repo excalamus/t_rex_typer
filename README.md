@@ -1,7 +1,7 @@
 ![T-Rex](t_rex_typer/resources/trex_w_board_96.png) *Exercise your shorthand!*
 
 # T-Rex Typer
-A desktop application to practice steno writing.
+A desktop application to improve steno writing.
 
 ![The T-Rex Typer](t_rex_typer/resources/screenshot.png)
 
