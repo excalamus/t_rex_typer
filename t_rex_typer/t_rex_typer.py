@@ -71,6 +71,17 @@ class RunState(Enum):
 
 class SettingsWindow(QtWidgets.QWidget):
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self._modified = False
+        self.setWindowTitle(f'Settings {APPLICATION_NAME}')
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+
+        self.init_widgets()
+        self.init_layout()
+
     def init_widgets(self):
 
         # restore defaults
@@ -115,17 +126,6 @@ class SettingsWindow(QtWidgets.QWidget):
         self.layout.addLayout(self.button_layout)
         self.setLayout(self.layout)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self._modified = False
-        self.setWindowTitle(f'Settings {APPLICATION_NAME}')
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
-
-        self.init_widgets()
-        self.init_layout()
-
     def toggle_modified(self, modified=True):
         if isinstance(status, bool):
             self._modified = not status
@@ -161,6 +161,16 @@ class SettingsWindow(QtWidgets.QWidget):
 
 class AboutWindow(QtWidgets.QWidget):
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle(f'About {APPLICATION_NAME}')
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
+
+        self.init_widgets()
+        self.init_layout()
+
     def init_widgets(self):
         self.icon_pixmap = QtGui.QPixmap()
         self.icon_pixmap.loadFromData(APPLICATION_ICON_BYTES)
@@ -195,16 +205,6 @@ class AboutWindow(QtWidgets.QWidget):
         self.layout.addWidget(self.body, stretch=1)
         self.setLayout(self.layout)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.setWindowTitle(f'About {APPLICATION_NAME}')
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
-
-        self.init_widgets()
-        self.init_layout()
-
     def on_hover(self, link):
         if link:
             QtWidgets.QToolTip.showText(QtGui.QCursor.pos(), link)
@@ -216,6 +216,84 @@ class AboutWindow(QtWidgets.QWidget):
 
 
 class MainWindow(QtWidgets.QMainWindow):
+
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle(APPLICATION_NAME)
+        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
+
+        self._dictionary = {}
+        self.lesson_file = None
+
+        self.text_raw     = ''
+        self.text_split   = ()
+        self.live_split   = []
+        self.current_unit = ''
+
+        self.missed      = 0
+        self.last_time   = 0
+        self.maybe_miss  = False
+        self.is_miss     = False
+        self.is_new_unit = True
+
+        self.init_widgets()
+        self.init_layout()
+
+        # Settings
+        self.settings = nostalgic.Configuration(os.path.join(SETTINGS_PATH, f"{APPLICATION_NAME}.ini"))
+
+        self.settings.add_setting("lesson_directory", default=DEFAULT_SETTINGS["lesson_directory"])
+        self.settings.add_setting("dictionary_path", default=DEFAULT_SETTINGS["dictionary_path"])
+
+        ## application
+        self.settings.add_setting(
+            "geometry",
+            default=self.saveGeometry(),
+            setter =self._set_geometry,
+            getter =self._get_geometry)
+        self.settings.add_setting(
+            "state",
+            default=self.saveState(),
+            setter =self._set_state,
+            getter =self._get_state)
+        self.settings.add_setting(
+            "size",
+            default=self.size(),
+            setter =self._set_size,
+            getter =self._get_size)
+        self.settings.add_setting(
+            "pos",
+            default=self.pos(),
+            setter =self._set_pos,
+            getter =self._get_pos)
+        self.settings.add_setting(
+            "maximized",
+            default=False,
+            setter =self._set_maximized,
+            getter =self._get_maximized)
+
+        ## splitter
+        self.settings.add_setting(
+            "splitter_h_state",
+            default=self.splitter_h.saveState(),
+            setter=self._set_splitter_h_state,
+            getter=self._get_splitter_h_state)
+        self.settings.add_setting(
+            "splitter_v_state",
+            default=self.splitter_v.saveState(),
+            setter=self._set_splitter_v_state,
+            getter=self._get_splitter_v_state)
+
+        self._load_settings()
+
+        # Debug
+        if IS_DEV_DEBUG:
+            self.line_edit.setFocus()
+            # self.settings_window.show()
+            # self.settings_window.raise_()
+        else:
+            self.text_editor.setFocus()
 
     ##############
     # Properties #
@@ -392,84 +470,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.central_widget.setLayout(self.central_layout)
         self.setCentralWidget(self.central_widget)
 
-    def __init__(self):
-        super().__init__()
-
-        self.setWindowTitle(APPLICATION_NAME)
-        self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
-
-        self._dictionary = {}
-        self.lesson_file = None
-
-        self.text_raw     = ''
-        self.text_split   = ()
-        self.live_split   = []
-        self.current_unit = ''
-
-        self.missed      = 0
-        self.last_time   = 0
-        self.maybe_miss  = False
-        self.is_miss     = False
-        self.is_new_unit = True
-
-        self.init_widgets()
-        self.init_layout()
-
-        # Settings
-        self.settings = nostalgic.Configuration(os.path.join(SETTINGS_PATH, f"{APPLICATION_NAME}.ini"))
-
-        self.settings.add_setting("lesson_directory", default=DEFAULT_SETTINGS["lesson_directory"])
-        self.settings.add_setting("dictionary_path", default=DEFAULT_SETTINGS["dictionary_path"])
-
-        ## application
-        self.settings.add_setting(
-            "geometry",
-            default=self.saveGeometry(),
-            setter =self._set_geometry,
-            getter =self._get_geometry)
-        self.settings.add_setting(
-            "state",
-            default=self.saveState(),
-            setter =self._set_state,
-            getter =self._get_state)
-        self.settings.add_setting(
-            "size",
-            default=self.size(),
-            setter =self._set_size,
-            getter =self._get_size)
-        self.settings.add_setting(
-            "pos",
-            default=self.pos(),
-            setter =self._set_pos,
-            getter =self._get_pos)
-        self.settings.add_setting(
-            "maximized",
-            default=False,
-            setter =self._set_maximized,
-            getter =self._get_maximized)
-
-        ## splitter
-        self.settings.add_setting(
-            "splitter_h_state",
-            default=self.splitter_h.saveState(),
-            setter=self._set_splitter_h_state,
-            getter=self._get_splitter_h_state)
-        self.settings.add_setting(
-            "splitter_v_state",
-            default=self.splitter_v.saveState(),
-            setter=self._set_splitter_v_state,
-            getter=self._get_splitter_v_state)
-
-        self._load_settings()
-
-        # Debug
-        if IS_DEV_DEBUG:
-            self.line_edit.setFocus()
-            # self.settings_window.show()
-            # self.settings_window.raise_()
-        else:
-            self.text_editor.setFocus()
-
     ############
     # Settings #
     ############
@@ -539,6 +539,9 @@ class MainWindow(QtWidgets.QMainWindow):
         json_encoded = json.dumps(state_ascii)
         return json_encoded
 
+    ###################
+    # General methods #
+    ###################
     def set_window_title(self, string=''):
         self.setWindowTitle(f'{APPLICATION_NAME} - ' + str(string))
 
