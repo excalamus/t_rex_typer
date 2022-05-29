@@ -1,7 +1,9 @@
 import os
 import sys
 import copy
+import json
 import time
+import base64
 import pkgutil
 
 import logging
@@ -9,6 +11,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig(format='%(levelname)s: [%(filename)s:%(lineno)d] %(message)s', level=logging.INFO)
 
 import argparse
+import nostalgic
 from enum import Enum
 from .translation_dict import TranslationDict
 from .widgets import TabSafeLineEdit, TextLabel
@@ -35,6 +38,10 @@ GRAY  = QtGui.QColor(190, 190, 190)
 
 APPLICATION_NAME       = "T-Rex Typer"
 APPLICATION_ICON_BYTES = pkgutil.get_data(__name__, "resources/trex_w_board_48.png")
+
+
+if sys.platform == "linux":
+    SETTINGS_PATH = os.path.join(os.path.expanduser("~"), f".config/{APPLICATION_NAME}")
 
 DEFAULT_SETTINGS = {
     "dictionary_path": os.path.expanduser("~"),
@@ -210,38 +217,9 @@ class AboutWindow(QtWidgets.QWidget):
 
 class MainWindow(QtWidgets.QMainWindow):
 
-    #######################
-    # Settings properties #
-    #######################
-
-    # Provide an easier call, as well as logging, for settings values
-
-    def _get_dictionary_path(self):
-        return self.settings.value("dictionary_path", DEFAULT_SETTINGS["dictionary_path"])
-
-    def _set_dictionary_path(self, value):
-        self.settings.setValue("dictionary_path", value)
-        log.debug(f"Set 'dictionary_path': {value}")
-        self.settings.sync()
-        log.info(f"Saved settings: {self.settings.fileName()}")
-
-    dictionary_path = property(_get_dictionary_path, _set_dictionary_path)
-
-    def _get_lesson_directory(self):
-        return self.settings.value("lesson_directory", DEFAULT_SETTINGS["lesson_directory"])
-
-    def _set_lesson_directory(self, value):
-        self.settings.setValue("lesson_directory", value)
-        log.debug(f"Set 'lesson_directory': {value}")
-        self.settings.sync()
-        log.info(f"Saved settings: {self.settings.fileName()}")
-
-    lesson_directory = property(_get_lesson_directory, _set_lesson_directory)
-
-    ###########################
-    # Non-Settings properties #
-    ###########################
-
+    ##############
+    # Properties #
+    ##############
     def _get_run_state(self):
         return self._run_state
 
@@ -256,7 +234,6 @@ class MainWindow(QtWidgets.QMainWindow):
         ########
         # menu #
         ########
-
         self.open_action = QtWidgets.QAction('&Open', self)
         self.open_action.setShortcut('Ctrl+O')
         self.open_action.setToolTip('Open..')
@@ -439,12 +416,50 @@ class MainWindow(QtWidgets.QMainWindow):
         self.init_layout()
 
         # Settings
-        self.settings = QtCore.QSettings(
-            QtCore.QSettings.IniFormat,
-            QtCore.QSettings.UserScope,
-            APPLICATION_NAME,
-            APPLICATION_NAME)
-        self.settings.setFallbacksEnabled(False)
+        self.settings = nostalgic.Configuration(os.path.join(SETTINGS_PATH, f"{APPLICATION_NAME}.ini"))
+
+        self.settings.add_setting("lesson_directory", default=DEFAULT_SETTINGS["lesson_directory"])
+        self.settings.add_setting("dictionary_path", default=DEFAULT_SETTINGS["dictionary_path"])
+
+        ## application
+        self.settings.add_setting(
+            "geometry",
+            default=self.saveGeometry(),
+            setter =self._set_geometry,
+            getter =self._get_geometry)
+        self.settings.add_setting(
+            "state",
+            default=self.saveState(),
+            setter =self._set_state,
+            getter =self._get_state)
+        self.settings.add_setting(
+            "size",
+            default=self.size(),
+            setter =self._set_size,
+            getter =self._get_size)
+        self.settings.add_setting(
+            "pos",
+            default=self.pos(),
+            setter =self._set_pos,
+            getter =self._get_pos)
+        self.settings.add_setting(
+            "maximized",
+            default=False,
+            setter =self._set_maximized,
+            getter =self._get_maximized)
+
+        ## splitter
+        self.settings.add_setting(
+            "splitter_h_state",
+            default=self.splitter_h.saveState(),
+            setter=self._set_splitter_h_state,
+            getter=self._get_splitter_h_state)
+        self.settings.add_setting(
+            "splitter_v_state",
+            default=self.splitter_v.saveState(),
+            setter=self._set_splitter_v_state,
+            getter=self._get_splitter_v_state)
+
         self._load_settings()
 
         # Debug
@@ -454,6 +469,75 @@ class MainWindow(QtWidgets.QMainWindow):
             # self.settings_window.raise_()
         else:
             self.text_editor.setFocus()
+
+    ############
+    # Settings #
+    ############
+    def _set_geometry(self, value):
+        # settings are written to disk as text, geometry is a byte array
+        geometry_bytes = base64.b64decode(value)
+        self.restoreGeometry(geometry_bytes)
+
+    def _get_geometry(self):
+        # settings are written to disk as text, geometry is a byte array
+        geometry_ascii = base64.b64encode(bytes(self.saveGeometry())).decode('ascii')
+        json_encoded = json.dumps(geometry_ascii)
+        return json_encoded
+
+    def _set_state(self, value):
+        # settings are written to disk as text, state is a byte array
+        state_bytes = base64.b64decode(value)
+        self.restoreState(state_bytes)
+
+    def _get_state(self):
+        # settings are written to disk as text, state is a byte array
+        state_ascii = base64.b64encode(bytes(self.saveState())).decode('ascii')
+        json_encoded = json.dumps(state_ascii)
+        return json_encoded
+
+    def _set_size(self, value):
+        if value:
+            self.resize(*value)
+
+    def _get_size(self):
+        # Must return a serializable value
+        return self.size().toTuple()
+
+    def _set_pos(self, value):
+        if value:
+            self.move(*value)
+
+    def _get_pos(self):
+        # Must return a serializable value
+        return self.pos().toTuple()
+
+    def _set_maximized(self, value):
+        if value:
+            self.showMaximized()
+
+    def _get_maximized(self):
+        return self.isMaximized()
+
+    def _set_splitter_h_state(self, value):
+        state_bytes = base64.b64decode(value)
+        self.splitter_h.restoreState(state_bytes)
+
+    def _get_splitter_h_state(self):
+        # settings are written to disk as text, state is a byte array
+        state_ascii = base64.b64encode(bytes(self.splitter_h.saveState())).decode('ascii')
+        json_encoded = json.dumps(state_ascii)
+        return json_encoded
+
+    def _set_splitter_v_state(self, value):
+        # settings are written to disk as text, state is a byte array
+        state_bytes = base64.b64decode(value)
+        self.splitter_v.restoreState(state_bytes)
+
+    def _get_splitter_v_state(self):
+        # settings are written to disk as text, state must be a byte array
+        state_ascii = base64.b64encode(bytes(self.splitter_v.saveState())).decode('ascii')
+        json_encoded = json.dumps(state_ascii)
+        return json_encoded
 
     def set_window_title(self, string=''):
         self.setWindowTitle(f'{APPLICATION_NAME} - ' + str(string))
@@ -466,7 +550,7 @@ class MainWindow(QtWidgets.QMainWindow):
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(
             self,
             caption='Open Lesson File',
-            dir=self.lesson_directory,
+            dir=self.settings.lesson_directory,
             filter='Text Files (*.txt);;All (*.*)')
 
         try:
@@ -475,7 +559,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.text_editor.setPlainText(trimmed_content)
             self.lesson_file = filename
-            self.lesson_directory = os.path.dirname(filename)
+            self.settings.lesson_directory = os.path.dirname(filename)
             self.set_window_title(self.lesson_file)
         except (FileNotFoundError):
             pass
@@ -501,7 +585,7 @@ class MainWindow(QtWidgets.QMainWindow):
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
             caption="Save As..",
-            dir=self.lesson_directory,
+            dir=self.settings.lesson_directory,
             filter="Text files (*.txt);;All files (*.*)")
 
         if filename:
@@ -512,7 +596,7 @@ class MainWindow(QtWidgets.QMainWindow):
         filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
             self,
             caption='Open one or more Plover dictionary files',
-            dir=self.dictionary_path,
+            dir=self.settings.dictionary_path,
             filter='JSON Files (*.json);;All (*.*)')
 
         self._dictionary = TranslationDict.load(filenames)
@@ -683,38 +767,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # print(f"maybe: {self.maybe_miss}", flush=True)
 
     def _load_settings(self):
-        # main window
-        self.restoreGeometry(self.settings.value("geometry", self.saveGeometry()))
-        self.restoreState(self.settings.value("state", self.saveState()))
-        self.resize(self.settings.value("size", self.size()))
-        self.move(self.settings.value("pos", self.pos()))
-
-        if self.settings.value("maximized", 'false').lower() == 'true':
-            self.showMaximized()
-
-        # splitters
-        splitter_h_state = self.settings.value("state_splitter_h", self.splitter_h.saveState())
-        self.splitter_h.restoreState(splitter_h_state)
-
-        splitter_v_state = self.settings.value("state_splitter_v", self.splitter_v.saveState())
-        self.splitter_v.restoreState(splitter_v_state)
-
-        log.info(f"Loaded settings: {self.settings.fileName()}")
+        self.settings.read()
+        log.info(f"Loaded settings: {self.settings.config_file}")
 
     def _save_settings(self):
-        # main window
-        self.settings.setValue("geometry", self.saveGeometry())
-        self.settings.setValue("state", self.saveState())
-        self.settings.setValue("pos", self.pos())
-        self.settings.setValue("size", self.size())
-        self.settings.setValue("maximized", self.isMaximized())
-
-        # splitters
-        self.settings.setValue("state_splitter_h", self.splitter_h.saveState())
-        self.settings.setValue("state_splitter_v", self.splitter_v.saveState())
-
-        self.settings.sync()
-        log.info(f"Saved settings: {self.settings.fileName()}")
+        self.settings.write()
+        log.info(f"Saved settings: {self.settings.config_file}")
 
     def closeEvent(self, event):
         # since MainWindow is not parent, must close manually
