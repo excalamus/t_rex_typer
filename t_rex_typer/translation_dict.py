@@ -3,10 +3,10 @@ import json
 
 
 # single quotes are used in two ways. First, as apostrophes in the
-# middle of a string of characters. Second at the boundary of a word
+# middle of a string of characters. Second at the boundary of a unit
 # as a quote or as an abbreviation.  Exclude single quotes and parse
 # these out later.
-WORD_REGEX = r"[\w']+|[{}()\[\]~`!@#$%^&*-_+=|\/.,:;\"]"
+UNIT_REGEX = r"[\w']+|[{}()\[\]~`!@#$%^&*-_+=|\/.,:;\"]"
 
 
 class TranslationDict:
@@ -129,16 +129,15 @@ class TranslationDict:
 
         return temp
 
-    # TODO change "phrase" to proper term
-    def _get_stroke_indices(self, phrase):
-        """Find indices of all strokes matching a phrase.
+    def _get_stroke_indices(self, unit):
+        """Find indices of all strokes matching a unit.
 
         Parameters
         ----------
+        unit : str
 
-        phrase : str
-
-          Word or phrase.
+          A unit is the output of a stroke, such as–but not limited
+          to–a word or phrase.
 
         Returns
         -------
@@ -149,21 +148,22 @@ class TranslationDict:
         """
 
         # TODO fails to find some words and punctuation.  This may be
-        # because of the direct comparison.  A phrase may map to
+        # because of the direct comparison.  A unit may map to
         # something like '{~|"^}' (i.e. double quote, KW-GS).
 
         return [i for i, entry in enumerate(list(self.values()))
-                if entry == phrase.lower().strip()]
+                if entry == unit.lower().strip()]
 
-    def get_strokes(self, phrase, sorted=True):
-        """Find strokes in the dictionary corresponding to the phrase.
+    def get_strokes(self, unit, sorted=True):
+        """Find strokes in the dictionary corresponding to the unit.
 
         Parameters
         ----------
 
-        phrase : str
+        unit : str
 
-          Word or phrase.
+          A unit is the output of a stroke, such as–but not limited
+          to–a word or phrase.
 
         sorted : bool, optional
 
@@ -173,13 +173,12 @@ class TranslationDict:
         Returns
         -------
 
-        List of strokes corresponding to the given phrase.
+        List of strokes corresponding to the given unit.
 
         """
 
         # TODO performance?
-
-        indices = self._get_stroke_indices(phrase)
+        indices = self._get_stroke_indices(unit)
         strokes = [list(self.keys())[i] for i in indices]
         if sorted:
             strokes.sort(key=len)
@@ -204,39 +203,39 @@ class TranslationDict:
         Returns
         -------
 
-          List of strokable units (i.e. words and symbols)
+          List of strokable units (e.g. words and symbols)
 
         """
 
-        # Symbols need to be strokable words except that single quote
-        # shouldn't be a stroke word if it appears inside a word.  The
-        # following works. TODO What's a better way to express this?
+        # Symbols need to be strokable units except that single quote
+        # shouldn't be a stroke unit if it appears inside a unit.  The
+        # following works. TODO Is there a better way to express this?
 
         # split into words
-        _split_with_single_quotes = re.findall(WORD_REGEX, text)
+        _split_with_single_quotes = re.findall(UNIT_REGEX, text)
 
-        # split apostrophes at the beginning and end of a word
+        # split apostrophes at the beginning and end of a unit
         text_split = []
-        for stroke_word in _split_with_single_quotes:
-            if stroke_word[0] == "\'" or stroke_word[-1] == "\'":
-                for w in stroke_word.split("\'"):
-                    if w:
-                        text_split.append(w)
+        for stroke_unit in _split_with_single_quotes:
+            if stroke_unit[0] == "\'" or stroke_unit[-1] == "\'":
+                for u in stroke_unit.split("\'"):
+                    if u:
+                        text_split.append(u)
                     else:
                         # split removes separator and returns empty
                         # string
                         text_split.append("'")
             else:
-                text_split.append(stroke_word)
+                text_split.append(stroke_unit)
 
         return text_split
 
     def translate(self, text):
         """Translate to steno strokes.
 
-        Words are defined by the WORD_REGEX and are translated
-        one-to-one.  Each word corresponds to a stroke.  For example,
-        the phrase "as well as" returns three strokes even if a brief
+        Units are defined by the UNIT_REGEX and are translated
+        one-to-one.  Each unit corresponds to a stroke.  For example,
+        the unit "as well as" returns three strokes even if a brief
         exists to do it in one stroke.
 
         Parameters
@@ -249,16 +248,15 @@ class TranslationDict:
         Returns
         -------
 
-        List of strokes corresponding to each word in the text.
+        List of strokes corresponding to each unit in the text.
 
         """
 
-        # TODO lots to optimize here. Aside from the lookup being
-        # crazy slow, there's the issue of getting the correct
+        # TODO There may be optimizations here. Aside from the lookup
+        # being slow, there's the issue of getting the correct
         # translation.  For example, "went" will be translated as
         # 'WEBLT' instead of 'WEPBT' since the strings have the same
         # length and B < P.
-
         split = self.split_into_strokable_units(text)
-        translation = [self.get_strokes(w)[0] for w in split]
+        translation = [self.get_strokes(u)[0] for u in split]
         return translation
