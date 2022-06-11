@@ -14,8 +14,8 @@ import argparse
 import nostalgic
 from enum import Enum
 from .translation_dict import TranslationDict
-from .widgets import TabSafeLineEdit, TextLabel
 from PySide2 import QtCore, QtWidgets, QtGui
+from .widgets import TabSafeLineEdit, TextLabel
 
 
 ###########
@@ -39,28 +39,10 @@ GRAY  = QtGui.QColor(190, 190, 190)
 APPLICATION_NAME       = "T-Rex Typer"
 APPLICATION_ICON_BYTES = pkgutil.get_data(__name__, "resources/trex_w_board_48.png")
 
-
 if sys.platform == "linux":
     SETTINGS_PATH = os.path.join(os.path.expanduser("~"), f".config/{APPLICATION_NAME}")
 
-DEFAULT_SETTINGS = {
-    "dictionary_path": os.path.expanduser("~"),
-    "lesson_directory": os.path.expanduser("~"),
-}
-
-# Accuracy measured on a per unit basis.  Without stroke information,
-# it's impossible to know whether text is a misstroke or simply part
-# of a multi-stroke phrase—Plover may delete entire words as part of a
-# multi-stroke sequence (e.g. "LEBG/TOR"->"lecture"->"elector").
-# Assuming the average word length in English is 5 characters, time in
-# seconds between characters /dt/ expressed in words given per minute
-# /w/ is dt = 12/w.  So, 0.4s is 30wpm.  TIME_BETWEEN_STROKES
-# represents the minimum acceptable speed.
-TIME_BETWEEN_STROKES = 0.4  # seconds
-
-if IS_DEV_DEBUG:
-    DEFAULT_SETTINGS["dictionary_path"] = "/home/ahab/Projects/t_rex_typer/scratch/"
-    DEFAULT_SETTINGS["lesson_directory"] = "/home/ahab/Projects/t_rex_typer/scratch/"
+SETTINGS = nostalgic.Configuration(os.path.join(SETTINGS_PATH, f"{APPLICATION_NAME}.ini"))
 
 
 class RunState(Enum):
@@ -74,8 +56,12 @@ class SettingsWindow(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.settings = SETTINGS
+
+        self.setMinimumWidth(600)
+
         self._modified = False
-        self.setWindowTitle(f'Settings {APPLICATION_NAME}')
+        self.setWindowTitle(f'Settings')
         self.setWindowFlags(self.windowFlags() & ~QtCore.Qt.WindowContextHelpButtonHint)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
@@ -83,6 +69,42 @@ class SettingsWindow(QtWidgets.QWidget):
         self.init_layout()
 
     def init_widgets(self):
+
+        # wpm threshold
+        self.wpm_threshold_label = QtWidgets.QLabel("WPM Miss Threshold:")
+        self.wpm_threshold_label.setToolTip("Count multi-strokes slower than this as a miss")
+        self.wpm_threshold_spinbox = QtWidgets.QSpinBox()
+        self.settings.add_setting(
+            "wpm_threshold",
+            default=30,
+            setter=self.wpm_threshold_spinbox.setValue,
+            getter=self.wpm_threshold_spinbox.value)
+        self.wpm_threshold_spinbox.setToolTip("Words per Minute")
+        self.wpm_threshold_spinbox.setRange(0, 400)
+        self.wpm_threshold_spinbox.setValue(self.settings.wpm_threshold)
+        self.wpm_threshold_spinbox.valueChanged.connect(self.on_change)
+
+        # dictionary directory
+        self.dictionary_directory_label = QtWidgets.QLabel("Dictionary Directory:")
+        self.dictionary_directory_label.setToolTip("Plover dictionary directory")
+        self.dictionary_directory_line_edit = QtWidgets.QLineEdit()
+        self.settings.add_setting(
+            "dictionary_directory",
+            default=os.path.expanduser("~"),
+            setter=self.dictionary_directory_line_edit.setText,
+            getter=self.dictionary_directory_line_edit.text)
+        self.dictionary_directory_line_edit.textEdited.connect(self.on_change)
+
+        # lesson directory
+        self.lesson_directory_label = QtWidgets.QLabel("Lesson Directory:")
+        # self.lesson_directory_label.setToolTip("Lesson directory")
+        self.lesson_directory_line_edit = QtWidgets.QLineEdit()
+        self.settings.add_setting(
+            "lesson_directory",
+            default=os.path.expanduser("~"),
+            setter=self.lesson_directory_line_edit.setText,
+            getter=self.lesson_directory_line_edit.text)
+        self.lesson_directory_line_edit.textEdited.connect(self.on_change)
 
         # restore defaults
         self.restore_defaults_link = QtWidgets.QLabel('<a href=".">Restore defaults</a>')
@@ -96,7 +118,7 @@ class SettingsWindow(QtWidgets.QWidget):
             QtWidgets.QDialogButtonBox.Apply)
 
         self.ok_button = self.button_box.buttons()[0]
-        self.ok_button.setToolTip("Apply changes and close window")
+        self.ok_button.setToolTip("Save changes and close window")
         self.button_box.accepted.connect(self.on_ok_clicked)
 
         self.cancel_button = self.button_box.buttons()[1]
@@ -104,12 +126,23 @@ class SettingsWindow(QtWidgets.QWidget):
         self.button_box.rejected.connect(self.close)
 
         self.apply_button = self.button_box.buttons()[2]
-        self.apply_button.setToolTip("Apply changes")
+        self.apply_button.setToolTip("Save changes")
         self.apply_button.setEnabled(False)
 
         self.apply_button.clicked.connect(self.apply_settings)
 
     def init_layout(self):
+        self.grid_layout = QtWidgets.QGridLayout()
+
+        # wpm threshold
+        self.grid_layout.addWidget(self.wpm_threshold_label, 0, 0)
+        self.grid_layout.addWidget(self.wpm_threshold_spinbox, 0, 1)
+        # dictionary directory
+        self.grid_layout.addWidget(self.dictionary_directory_label, 1, 0)
+        self.grid_layout.addWidget(self.dictionary_directory_line_edit, 1, 1)
+        # lesson directory
+        self.grid_layout.addWidget(self.lesson_directory_label, 2, 0)
+        self.grid_layout.addWidget(self.lesson_directory_line_edit, 2, 1)
 
         # restore defaults
         self.restore_defaults_layout = QtWidgets.QHBoxLayout()
@@ -121,35 +154,43 @@ class SettingsWindow(QtWidgets.QWidget):
         self.button_layout.addWidget(QtWidgets.QWidget(), stretch=1)
         self.button_layout.addWidget(self.button_box)
 
+        # layout
         self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addLayout(self.grid_layout)
+        self.layout.addWidget(QtWidgets.QWidget(), stretch=1)
         self.layout.addLayout(self.restore_defaults_layout)
         self.layout.addLayout(self.button_layout)
         self.setLayout(self.layout)
 
-    def toggle_modified(self, modified=True):
+    def toggle_modified(self, status=True):
         if isinstance(status, bool):
             self._modified = not status
 
         if not self._modified:
             self.apply_button.setEnabled(True)
-            self.setWindowTitle('Settings {APPLICATION_NAME}*')
+            self.setWindowTitle(f"Settings*")
             self._modified = True
         else:
             self.apply_button.setEnabled(False)
-            self.setWindowTitle('Settings {APPLICATION_NAME}')
+            self.setWindowTitle(f"Settings")
             self._modified = False
 
-    # TODO
+    def on_change(self, *args):
+        if not self._modified:
+            self.toggle_modified()
+
     def restore_defaults(self):
-        pass
+        non_application_keys = [k for k in self.settings._settings.keys() if k[:12] != 'application_']
+        self.settings.set(keys=non_application_keys, use_defaults=True)
+        self.toggle_modified(True)
 
-    # TODO
     def apply_settings(self):
-        pass
+        self.settings.write()
+        self.toggle_modified(False)
+        log.info(f"Saved settings: {self.settings.config_file}")
 
-    # TODO
     def on_restore_defaults_link_activated(self):
-        pass
+        self.restore_defaults()
 
     def on_ok_clicked(self):
         self.apply_settings()
@@ -237,61 +278,50 @@ class MainWindow(QtWidgets.QMainWindow):
         self.is_miss     = False
         self.is_new_unit = True
 
-        self.init_widgets()
-        self.init_layout()
-
         # Settings
-        self.settings = nostalgic.Configuration(os.path.join(SETTINGS_PATH, f"{APPLICATION_NAME}.ini"))
+        # NOTE: settings may be defined elsewhere because of
+        # dependencies
+        self.settings = SETTINGS
 
-        self.settings.add_setting("lesson_directory", default=DEFAULT_SETTINGS["lesson_directory"])
-        self.settings.add_setting("dictionary_path", default=DEFAULT_SETTINGS["dictionary_path"])
-
-        ## application
         self.settings.add_setting(
-            "geometry",
+            "application_geometry",
             default=self.saveGeometry(),
             setter =self._set_geometry,
             getter =self._get_geometry)
         self.settings.add_setting(
-            "state",
+            "application_state",
             default=self.saveState(),
             setter =self._set_state,
             getter =self._get_state)
         self.settings.add_setting(
-            "size",
-            default=self.size(),
+            "application_size",
+            default=[640, 480],
             setter =self._set_size,
             getter =self._get_size)
         self.settings.add_setting(
-            "pos",
+            "application_pos",
             default=self.pos(),
             setter =self._set_pos,
             getter =self._get_pos)
         self.settings.add_setting(
-            "maximized",
+            "application_maximized",
             default=False,
             setter =self._set_maximized,
             getter =self._get_maximized)
 
-        ## splitter
-        self.settings.add_setting(
-            "splitter_h_state",
-            default=self.splitter_h.saveState(),
-            setter=self._set_splitter_h_state,
-            getter=self._get_splitter_h_state)
-        self.settings.add_setting(
-            "splitter_v_state",
-            default=self.splitter_v.saveState(),
-            setter=self._set_splitter_v_state,
-            getter=self._get_splitter_v_state)
+        self.init_widgets()
+        self.init_layout()
 
-        self._load_settings()
+        self._load_settings(sync=True)
+        self.settings_window.toggle_modified(False)
 
         # Debug
         if IS_DEV_DEBUG:
             self.line_edit.setFocus()
-            # self.settings_window.show()
-            # self.settings_window.raise_()
+            self.settings.dictionary_directory = "/home/ahab/Projects/t_rex_typer/scratch/"
+            self.settings.lesson_directory     = "/home/ahab/Projects/t_rex_typer/scratch/"
+            self.on_settings_action()
+
         else:
             self.text_editor.setFocus()
 
@@ -312,6 +342,7 @@ class MainWindow(QtWidgets.QMainWindow):
         ########
         # menu #
         ########
+
         self.open_action = QtWidgets.QAction('&Open', self)
         self.open_action.setShortcut('Ctrl+O')
         self.open_action.setToolTip('Open..')
@@ -452,7 +483,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Place frames in splitters
         self.splitter_h = QtWidgets.QSplitter(QtCore.Qt.Vertical)
+
+        self.settings.add_setting(
+            "application_splitter_h_state",
+            default=self.splitter_h.saveState(),
+            setter=self._set_splitter_h_state,
+            getter=self._get_splitter_h_state)
+
         self.splitter_v = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+
+        self.settings.add_setting(
+            "application_splitter_v_state",
+            default=self.splitter_v.saveState(),
+            setter=self._set_splitter_v_state,
+            getter=self._get_splitter_v_state)
 
         self.splitter_h.addWidget(self.frame_top_left)
         self.splitter_h.addWidget(self.frame_middle_left)
@@ -599,13 +643,17 @@ class MainWindow(QtWidgets.QMainWindow):
         filenames, _ = QtWidgets.QFileDialog.getOpenFileNames(
             self,
             caption='Open one or more Plover dictionary files',
-            dir=self.settings.dictionary_path,
+            dir=self.settings.dictionary_directory,
             filter='JSON Files (*.json);;All (*.*)')
 
         self._dictionary = TranslationDict.load(filenames)
         log.debug(f"Loaded dictionaries: {filenames}")
 
     def on_settings_action(self):
+        non_application_keys = [k for k in self.settings._settings.keys() if k[:12] != 'application_']
+        self.settings.set(non_application_keys)
+        self.settings_window.toggle_modified(False)
+
         self.settings_window.show()
         self.settings_window.raise_()
         self.settings_window.activateWindow()
@@ -673,7 +721,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         delta = abs(time.time()-self.last_time)
 
-        if not self.is_miss and self.maybe_miss and delta > TIME_BETWEEN_STROKES:
+        # Accuracy measured on a per unit basis.  Without stroke information,
+        # it's impossible to know whether text is a misstroke or simply part
+        # of a multi-stroke phrase—Plover may delete entire words as part of a
+        # multi-stroke sequence (e.g. "LEBG/TOR"->"lecture"->"elector").
+        # Assuming the average word length in English is 5 characters, time in
+        # seconds between characters /dt/ expressed in words given per minute
+        # /w/ is dt = 12/w.  So, 0.4s is 30wpm.  self.settings.time_between_strokes
+        # represents the minimum acceptable speed.
+        time_between_strokes = 12 / self.settings.wpm_threshold
+        if not self.is_miss and self.maybe_miss and delta > time_between_strokes:
             # since self.maybe_miss only gets set once per unit, each
             # unit has a maximum of 1 possible miss
             self.missed += 1
@@ -769,23 +826,25 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # print(f"maybe: {self.maybe_miss}", flush=True)
 
-    def _load_settings(self):
-        self.settings.read()
+    def _load_settings(self, sync=True):
+        self.settings.read(sync=sync)
         log.info(f"Loaded settings: {self.settings.config_file}")
 
-    def _save_settings(self):
-        self.settings.write()
+    def _save_settings(self, sync=True):
+        self.settings.write(sync=sync)
         log.info(f"Saved settings: {self.settings.config_file}")
 
     def closeEvent(self, event):
+        # must save before objects (like the SettingsWindow) are
+        # destroyed
+        self._save_settings(sync=True)
+
         # since MainWindow is not parent, must close manually
         self.about_window.close()
         del self.about_window
 
         self.settings_window.close()
         del self.settings_window
-
-        self._save_settings()
 
         event.accept()
 
