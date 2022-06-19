@@ -367,7 +367,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.settings_action.triggered.connect(self.on_settings_action)
 
         self.exit_action = QtWidgets.QAction('&Exit', self)
-        self.exit_action.setShortcut("Escape")
+        if IS_DEV_DEBUG:
+            self.exit_action.setShortcut("Escape")
         self.exit_action.setToolTip('Exit application')
         self.exit_action.triggered.connect(self.close)
 
